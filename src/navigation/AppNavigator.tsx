@@ -1,10 +1,12 @@
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useEffect } from 'react';
-import { Platform } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, Text, View } from 'react-native';
 import { enableScreens } from 'react-native-screens';
 
+import { useAuth } from '@hooks/useAuth';
 import { HomeScreen } from '@screens/HomeScreen';
+import { LoginScreen } from '@screens/LoginScreen';
 import { MentorScreen } from '@screens/MentorScreen';
 import { PaymentsScreen } from '@screens/PaymentsScreen';
 import { SoulMatchScreen } from '@screens/SoulMatchScreen';
@@ -19,7 +21,12 @@ export type RootStackParamList = {
   Payments: undefined;
 };
 
+export type AuthStackParamList = {
+  Login: undefined;
+};
+
 const Stack = createNativeStackNavigator<RootStackParamList>();
+const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 
 const navigationTheme = {
   ...DefaultTheme,
@@ -32,6 +39,8 @@ const navigationTheme = {
 };
 
 export function AppNavigator() {
+  const { isAuthenticated, loading } = useAuth();
+
   useEffect(() => {
     if (Platform.OS === 'android') {
       // Enable experimental layout anims once per platform
@@ -39,35 +48,77 @@ export function AppNavigator() {
     }
   }, []);
 
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator color={theme.palette.platinum} size="large" />
+        <Text style={styles.loadingText}>Preparing Selflink…</Text>
+      </View>
+    );
+  }
+
   return (
     <NavigationContainer theme={navigationTheme}>
-      <Stack.Navigator
-        screenOptions={{
-          headerTransparent: true,
-          headerTintColor: theme.palette.platinum,
-          headerTitleStyle: {
-            ...theme.typography.subtitle,
-            color: theme.palette.platinum,
-          },
-        }}
-      >
-        <Stack.Screen name="Home" component={HomeScreen} />
-        <Stack.Screen
-          name="Mentor"
-          component={MentorScreen}
-          options={{ headerTitle: 'Mentor Session' }}
-        />
-        <Stack.Screen
-          name="SoulMatch"
-          component={SoulMatchScreen}
-          options={{ headerTitle: 'SoulMatch' }}
-        />
-        <Stack.Screen
-          name="Payments"
-          component={PaymentsScreen}
-          options={{ headerTitle: 'Payments & Wallet' }}
-        />
-      </Stack.Navigator>
+      {isAuthenticated ? (
+        <Stack.Navigator
+          screenOptions={{
+            headerTransparent: true,
+            headerTintColor: theme.palette.platinum,
+            headerTitleStyle: {
+              ...theme.typography.subtitle,
+              color: theme.palette.platinum,
+            },
+          }}
+        >
+          <Stack.Screen name="Home" component={HomeScreen} />
+          <Stack.Screen
+            name="Mentor"
+            component={MentorScreen}
+            options={{ headerTitle: 'Mentor Session' }}
+          />
+          <Stack.Screen
+            name="SoulMatch"
+            component={SoulMatchScreen}
+            options={{ headerTitle: 'SoulMatch' }}
+          />
+          <Stack.Screen
+            name="Payments"
+            component={PaymentsScreen}
+            options={{ headerTitle: 'Payments & Wallet' }}
+          />
+        </Stack.Navigator>
+      ) : (
+        <AuthStack.Navigator
+          screenOptions={{
+            headerTransparent: true,
+            headerTintColor: theme.palette.platinum,
+            headerTitleStyle: {
+              ...theme.typography.subtitle,
+              color: theme.palette.platinum,
+            },
+          }}
+        >
+          <AuthStack.Screen
+            name="Login"
+            component={LoginScreen}
+            options={{ headerShown: false }}
+          />
+        </AuthStack.Navigator>
+      )}
     </NavigationContainer>
   );
 }
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: theme.palette.midnight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: theme.spacing.md,
+  },
+  loadingText: {
+    color: theme.palette.platinum,
+    ...theme.typography.subtitle,
+  },
+});
