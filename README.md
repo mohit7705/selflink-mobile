@@ -42,8 +42,9 @@ src/
 
 - `src/context/AuthContext.tsx` stores the JWT, syncs with `expo-secure-store`, and keeps `apiClient` updated.
 - `src/hooks/useAuth.ts` provides easy access to `signIn`, `signOut`, and auth state.
-- `src/screens/LoginScreen.tsx` offers a metallic-themed sign-in form (currently using a placeholder token) ready to connect to the Django auth endpoint.
-- `AppNavigator` now gates access: unauthenticated users see the Login screen, while signed-in users reach Home/Mentor/SoulMatch/Payments flows.
+- `src/screens/LoginScreen.tsx` offers a metallic-themed sign-in form that hits `/api/v1/auth/login/`, falling back to a mock token for local dev.
+- `AppNavigator` now gates access: unauthenticated users see Login; signed-in users reach Home/Mentor/SoulMatch/Payments and can sign out directly from the Home welcome panel.
+- Home’s welcome panel shows the active user and exposes a Sign Out CTA, making it easy to switch accounts during testing.
 
 ## Screens & Navigation
 
@@ -53,4 +54,5 @@ src/
 
 ## CI
 
-GitHub Actions workflow (`.github/workflows/ci.yml`) installs dependencies, then runs lint, typecheck, and tests on pushes and PRs targeting `main`.
+- GitHub Actions workflow (`.github/workflows/ci.yml`) installs dependencies, then runs lint, typecheck, and tests on pushes and PRs targeting `main`.
+- Jest specs cover both UI and auth flows (`src/__tests__/HomeScreen.test.tsx`, `src/__tests__/AuthContext.test.tsx`).
