@@ -30,12 +30,20 @@ src/
 - `npm run lint` – ESLint with import ordering rules.
 - `npm run typecheck` – TypeScript in noEmit mode.
 - `npm test` – jest-expo test runner.
+- `npm run start` – Boot Expo development server with the Auth + navigation stack.
 
 ## Environment Config
 
 - `app.json` now exposes `expo.extra.backendUrl` and `expo.extra.healthEndpoint`. Adjust these per environment or convert to `app.config.ts` for full env switching.
 - `src/config/env.ts` reads those values, and `src/hooks/useBackendHealth.ts` uses them to test the Django API’s `/api/health/` endpoint by default.
 - Extend `src/services/api/client.ts` to add authenticated requests once login is wired.
+
+## Authentication Foundation
+
+- `src/context/AuthContext.tsx` stores the JWT, syncs with `expo-secure-store`, and keeps `apiClient` updated.
+- `src/hooks/useAuth.ts` provides easy access to `signIn`, `signOut`, and auth state.
+- `src/screens/LoginScreen.tsx` offers a metallic-themed sign-in form (currently using a placeholder token) ready to connect to the Django auth endpoint.
+- `AppNavigator` now gates access: unauthenticated users see the Login screen, while signed-in users reach Home/Mentor/SoulMatch/Payments flows.
 
 ## Screens & Navigation
 
