@@ -14,6 +14,9 @@ type Credentials = {
 
 type RegisterPayload = Credentials & {
   name?: string;
+  handle?: string;
+  fullName?: string;
+  intention?: string;
 };
 
 const MOCK_USER_NAME = 'Selflink Explorer';
@@ -53,7 +56,7 @@ export async function loginWithPassword(
 
 export async function registerUser(payload: RegisterPayload): Promise<LoginResponse> {
   try {
-    const result = await apiClient.request<LoginResponse>('/api/v1/auth/register/', {
+    const result = await apiClient.request<LoginResponse>('/api/v1/register/', {
       method: 'POST',
       auth: false,
       body: payload,

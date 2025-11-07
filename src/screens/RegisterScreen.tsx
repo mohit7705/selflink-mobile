@@ -21,6 +21,9 @@ export function RegisterScreen() {
   const { signIn } = useAuth();
   const toast = useToast();
   const [name, setName] = useState('');
+  const [handle, setHandle] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [intention, setIntention] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -30,7 +33,7 @@ export function RegisterScreen() {
     if (isSubmitting) {
       return;
     }
-    if (!email || !password || !confirmPassword) {
+    if (!email || !password || !confirmPassword || !handle) {
       toast.push({
         message: 'Please fill out all required fields.',
         tone: 'error',
@@ -49,7 +52,14 @@ export function RegisterScreen() {
 
     try {
       setIsSubmitting(true);
-      const result = await registerUser({ name, email, password });
+      const result = await registerUser({
+        name,
+        email,
+        password,
+        handle,
+        fullName,
+        intention,
+      });
       await signIn(result);
       toast.push({ message: 'Welcome to Selflink!', tone: 'info', duration: 3000 });
     } catch (error) {
@@ -88,12 +98,34 @@ export function RegisterScreen() {
               style={styles.input}
             />
             <TextInput
+              placeholder="Handle"
+              placeholderTextColor={theme.palette.silver}
+              autoCapitalize="none"
+              value={handle}
+              onChangeText={setHandle}
+              style={styles.input}
+            />
+            <TextInput
               placeholder="Email"
               placeholderTextColor={theme.palette.silver}
               autoCapitalize="none"
               keyboardType="email-address"
               value={email}
               onChangeText={setEmail}
+              style={styles.input}
+            />
+            <TextInput
+              placeholder="Full Name"
+              placeholderTextColor={theme.palette.silver}
+              value={fullName}
+              onChangeText={setFullName}
+              style={styles.input}
+            />
+            <TextInput
+              placeholder="Intention"
+              placeholderTextColor={theme.palette.silver}
+              value={intention}
+              onChangeText={setIntention}
               style={styles.input}
             />
             <TextInput

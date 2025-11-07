@@ -34,7 +34,7 @@ src/
 
 ## Environment Config
 
-- `app.json` now exposes `expo.extra.backendUrl` and `expo.extra.healthEndpoint`. Adjust these per environment or convert to `app.config.ts` for full env switching.
+- `app.json` now exposes `expo.extra.backendUrl` and `expo.extra.healthEndpoint`. Adjust these per environment (the fallback points to `http://10.0.2.2:8000` so the Android emulator reaches your local Django server).
 - `src/config/env.ts` reads those values, and `src/hooks/useBackendHealth.ts` uses them to test the Django API’s `/api/health/` endpoint by default.
 - Extend `src/services/api/client.ts` to add authenticated requests once login is wired.
 
@@ -43,7 +43,7 @@ src/
 - `src/context/AuthContext.tsx` stores the JWT, syncs with `expo-secure-store`, and keeps `apiClient` updated.
 - `src/hooks/useAuth.ts` provides easy access to `signIn`, `signOut`, and auth state.
 - `src/screens/LoginScreen.tsx` offers a metallic-themed sign-in form that hits `/api/v1/auth/login/`, falling back to a mock token for local dev.
-- `src/screens/RegisterScreen.tsx` lets new users create accounts and reuses the toast/auth flows before routing them into the app.
+- `src/screens/RegisterScreen.tsx` collects the backend-required payload (email, handle, name, password, optional full name/intention) and reuses the toast/auth flows before routing new users into the app.
 - `AppNavigator` now gates access: unauthenticated users see Login; signed-in users reach Home/Mentor/SoulMatch/Payments and can sign out directly from the Home welcome panel.
 - Home’s welcome panel shows the active user and exposes a Sign Out CTA, making it easy to switch accounts during testing.
 - `src/services/api/user.ts` and the auth provider call `/api/v1/users/me/` to hydrate the profile on launch and after login.

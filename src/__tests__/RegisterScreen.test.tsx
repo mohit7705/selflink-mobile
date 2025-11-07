@@ -51,26 +51,44 @@ describe('RegisterScreen', () => {
     const { getByPlaceholderText, getByText } = renderScreen();
 
     fireEvent.changeText(getByPlaceholderText('Display Name'), 'Steve');
+    fireEvent.changeText(getByPlaceholderText('Handle'), 'steve');
     fireEvent.changeText(getByPlaceholderText('Email'), 'jobs@apple.com');
+    fireEvent.changeText(getByPlaceholderText('Full Name'), 'Steve Jobs');
+    fireEvent.changeText(getByPlaceholderText('Intention'), 'Connect');
     fireEvent.changeText(getByPlaceholderText('Password'), 'password');
     fireEvent.changeText(getByPlaceholderText('Confirm Password'), 'password');
 
     fireEvent.press(getByText('Create Account'));
 
     await waitFor(() => expect(mockRegisterUser).toHaveBeenCalled());
+    expect(mockRegisterUser).toHaveBeenCalledWith({
+      name: 'Steve',
+      email: 'jobs@apple.com',
+      password: 'password',
+      handle: 'steve',
+      fullName: 'Steve Jobs',
+      intention: 'Connect',
+    });
     expect(mockSignIn).toHaveBeenCalledWith({
       token: 'abc',
       user: { id: '1', email: 'jobs@apple.com', name: 'Steve' },
     });
-    expect(mockToastPush).toHaveBeenCalledWith({ message: 'Welcome to Selflink!', tone: 'info', duration: 3000 });
+    expect(mockToastPush).toHaveBeenCalledWith({
+      message: 'Welcome to Selflink!',
+      tone: 'info',
+      duration: 3000,
+    });
   });
 
   it('shows error toast when registration fails', async () => {
     mockRegisterUser.mockRejectedValue(new Error('network'));
 
-    const { getByPlaceholderText, getByText, queryByText } = renderScreen();
+    const { getByPlaceholderText, getByText } = renderScreen();
 
+    fireEvent.changeText(getByPlaceholderText('Handle'), 'steve');
     fireEvent.changeText(getByPlaceholderText('Email'), 'jobs@apple.com');
+    fireEvent.changeText(getByPlaceholderText('Full Name'), 'Steve Jobs');
+    fireEvent.changeText(getByPlaceholderText('Intention'), 'Connect');
     fireEvent.changeText(getByPlaceholderText('Password'), 'password');
     fireEvent.changeText(getByPlaceholderText('Confirm Password'), 'password');
 

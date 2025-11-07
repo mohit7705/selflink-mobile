@@ -149,7 +149,7 @@ describe('AuthContext', () => {
       });
     });
 
-    let caught: Error | null = null;
+    let caught: unknown;
     await act(async () => {
       try {
         await authApi?.updateProfile({ name: 'New Name' });
@@ -158,8 +158,10 @@ describe('AuthContext', () => {
       }
     });
 
-    expect(caught).toBeTruthy();
-    expect(caught?.message).toBe('network');
+    expect(caught).toBeInstanceOf(Error);
+    if (caught instanceof Error) {
+      expect(caught.message).toBe('network');
+    }
 
     expect(authApi?.user?.name).toBe('Steve Jobs');
   });
