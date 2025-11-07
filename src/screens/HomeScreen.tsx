@@ -56,7 +56,7 @@ export function HomeScreen() {
   }, [signOut, isSigningOut]);
 
   useEffect(() => {
-    if (profileError) {
+    if (profileError && !profileToastId) {
       const id = toast.push({
         message: profileError,
         tone: 'error',
@@ -65,7 +65,9 @@ export function HomeScreen() {
         duration: 6000,
       });
       setProfileToastId(id);
-    } else if (profileToastId) {
+    }
+
+    if (!profileError && profileToastId) {
       toast.dismiss(profileToastId);
       setProfileToastId(null);
     }

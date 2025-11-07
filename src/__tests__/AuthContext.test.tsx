@@ -1,5 +1,5 @@
 import { act, render, waitFor } from '@testing-library/react-native';
-import { useRef } from 'react';
+import { useEffect } from 'react';
 import { Text } from 'react-native';
 
 import { AuthProvider } from '@context/AuthContext';
@@ -31,17 +31,14 @@ const secureStore = jest.requireMock('expo-secure-store') as {
 };
 
 type HarnessProps = {
-  onReady: (value: ReturnType<typeof useAuth>) => void;
+  onChange: (value: ReturnType<typeof useAuth>) => void;
 };
 
-function AuthHarness({ onReady }: HarnessProps) {
+function AuthHarness({ onChange }: HarnessProps) {
   const auth = useAuth();
-  const readyRef = useRef(false);
-
-  if (!readyRef.current) {
-    readyRef.current = true;
-    onReady(auth);
-  }
+  useEffect(() => {
+    onChange(auth);
+  }, [auth, onChange]);
 
   return (
     <>
@@ -68,7 +65,7 @@ describe('AuthContext', () => {
 
     const { getByTestId } = render(
       <AuthProvider>
-        <AuthHarness onReady={handleReady} />
+        <AuthHarness onChange={handleReady} />
       </AuthProvider>,
     );
 
@@ -108,7 +105,7 @@ describe('AuthContext', () => {
 
     render(
       <AuthProvider>
-        <AuthHarness onReady={handleReady} />
+        <AuthHarness onChange={handleReady} />
       </AuthProvider>,
     );
 
@@ -139,7 +136,7 @@ describe('AuthContext', () => {
 
     render(
       <AuthProvider>
-        <AuthHarness onReady={handleReady} />
+        <AuthHarness onChange={handleReady} />
       </AuthProvider>,
     );
 

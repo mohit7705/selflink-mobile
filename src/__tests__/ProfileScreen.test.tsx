@@ -55,7 +55,9 @@ describe('ProfileScreen', () => {
     const saveButton = getByText('Save Changes');
     fireEvent.press(saveButton);
 
-    await waitFor(() => expect(mockUpdateProfile).toHaveBeenCalledWith({ name: 'Steve Jay' }));
+    await waitFor(() =>
+      expect(mockUpdateProfile).toHaveBeenCalledWith({ name: 'Steve Jay' }),
+    );
 
     expect(mockRefreshProfile).toHaveBeenCalled();
     expect(queryByText('Profile updated successfully.')).toBeTruthy();

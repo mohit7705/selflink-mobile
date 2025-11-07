@@ -1,5 +1,3 @@
-import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
 import {
@@ -16,25 +14,33 @@ import { MetalButton } from '@components/MetalButton';
 import { MetalPanel } from '@components/MetalPanel';
 import { useToast } from '@context/ToastContext';
 import { useAuth } from '@hooks/useAuth';
-import { AuthStackParamList } from '@navigation/AppNavigator';
-import { loginWithPassword } from '@services/api/auth';
+import { registerUser } from '@services/api/auth';
 import { theme } from '@theme/index';
 
-export function LoginScreen() {
+export function RegisterScreen() {
   const { signIn } = useAuth();
-  const navigation = useNavigation<NativeStackNavigationProp<AuthStackParamList>>();
+  const toast = useToast();
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const toast = useToast();
 
-  const handleLogin = async () => {
+  const handleRegister = async () => {
     if (isSubmitting) {
       return;
     }
-    if (!email || !password) {
+    if (!email || !password || !confirmPassword) {
       toast.push({
-        message: 'Please enter both email and password to continue.',
+        message: 'Please fill out all required fields.',
+        tone: 'error',
+        duration: 4000,
+      });
+      return;
+    }
+    if (password !== confirmPassword) {
+      toast.push({
+        message: 'Passwords do not match.',
         tone: 'error',
         duration: 4000,
       });
@@ -43,12 +49,13 @@ export function LoginScreen() {
 
     try {
       setIsSubmitting(true);
-      const result = await loginWithPassword({ email, password });
+      const result = await registerUser({ name, email, password });
       await signIn(result);
+      toast.push({ message: 'Welcome to Selflink!', tone: 'info', duration: 3000 });
     } catch (error) {
-      console.error('Login failed', error);
+      console.error('Registration failed', error);
       toast.push({
-        message: 'Login failed. Please verify your credentials and try again.',
+        message: 'Registration failed. Please try again.',
         tone: 'error',
         duration: 5000,
       });
@@ -65,14 +72,21 @@ export function LoginScreen() {
         style={styles.flex}
       >
         <View style={styles.content}>
-          <Text style={styles.headline}>Welcome to Selflink</Text>
+          <Text style={styles.headline}>Create Your Selflink Account</Text>
           <Text style={styles.subtitle}>
-            Sign in to unlock your mentor, SoulMatch, and premium social experiences.
-            Inspired by the brushed-aluminum glow of early Apple design.
+            Metallic gradients, rounded edges, and a thoughtful experience from the first
+            tap.
           </Text>
 
           <MetalPanel glow>
-            <Text style={styles.panelTitle}>Sign In</Text>
+            <Text style={styles.panelTitle}>Sign Up</Text>
+            <TextInput
+              placeholder="Display Name"
+              placeholderTextColor={theme.palette.silver}
+              value={name}
+              onChangeText={setName}
+              style={styles.input}
+            />
             <TextInput
               placeholder="Email"
               placeholderTextColor={theme.palette.silver}
@@ -90,17 +104,18 @@ export function LoginScreen() {
               onChangeText={setPassword}
               style={styles.input}
             />
-            <MetalButton
-              title={isSubmitting ? 'Signing In…' : 'Sign In'}
-              onPress={handleLogin}
+            <TextInput
+              placeholder="Confirm Password"
+              placeholderTextColor={theme.palette.silver}
+              secureTextEntry
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              style={styles.input}
             />
-            <View style={styles.secondaryCta}>
-              <Text style={styles.secondaryText}>New to Selflink?</Text>
-              <MetalButton
-                title="Create Account"
-                onPress={() => navigation.navigate('Register')}
-              />
-            </View>
+            <MetalButton
+              title={isSubmitting ? 'Creating Account…' : 'Create Account'}
+              onPress={handleRegister}
+            />
           </MetalPanel>
         </View>
       </KeyboardAvoidingView>
@@ -135,14 +150,6 @@ const styles = StyleSheet.create({
     color: theme.palette.titanium,
     ...theme.typography.subtitle,
     marginBottom: theme.spacing.md,
-  },
-  secondaryCta: {
-    marginTop: theme.spacing.md,
-    gap: theme.spacing.xs,
-  },
-  secondaryText: {
-    color: theme.palette.silver,
-    textAlign: 'center',
   },
   input: {
     borderRadius: theme.radius.md,

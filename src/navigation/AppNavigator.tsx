@@ -10,6 +10,7 @@ import { LoginScreen } from '@screens/LoginScreen';
 import { MentorScreen } from '@screens/MentorScreen';
 import { PaymentsScreen } from '@screens/PaymentsScreen';
 import { ProfileScreen } from '@screens/ProfileScreen';
+import { RegisterScreen } from '@screens/RegisterScreen';
 import { SoulMatchScreen } from '@screens/SoulMatchScreen';
 import { ToastContainer } from '@screens/ToastContainer';
 import { theme } from '@theme/index';
@@ -26,6 +27,7 @@ export type RootStackParamList = {
 
 export type AuthStackParamList = {
   Login: undefined;
+  Register: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -111,6 +113,11 @@ export function AppNavigator() {
             name="Login"
             component={LoginScreen}
             options={{ headerShown: false }}
+          />
+          <AuthStack.Screen
+            name="Register"
+            component={RegisterScreen}
+            options={{ headerTitle: 'Create Account' }}
           />
         </AuthStack.Navigator>
       )}

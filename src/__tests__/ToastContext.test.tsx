@@ -1,73 +1,76 @@
-import { act, render } from '@testing-library/react-native';
-import { useEffect, useRef } from 'react';
+import { act, render, waitFor } from '@testing-library/react-native';
+import { useEffect } from 'react';
 
 import { ToastProvider, useToast } from '@context/ToastContext';
 
-jest.useFakeTimers();
+beforeEach(() => {
+  jest.useFakeTimers();
+});
+
+afterEach(() => {
+  jest.runOnlyPendingTimers();
+  jest.useRealTimers();
+});
 
 type ToastApi = ReturnType<typeof useToast>;
 
-function ToastHarness({ onReady }: { onReady: (api: ToastApi) => void }) {
+function ToastHarness({ onChange }: { onChange: (api: ToastApi) => void }) {
   const api = useToast();
-  const ready = useRef(false);
-
   useEffect(() => {
-    if (!ready.current) {
-      ready.current = true;
-      onReady(api);
-    }
-  }, [api, onReady]);
-
+    onChange(api);
+  }, [api, onChange]);
   return null;
 }
 
 describe('ToastContext', () => {
-  it('queues toasts and dismisses them manually', () => {
+  it('queues toasts and dismisses them manually', async () => {
     let ctx: ToastApi | null = null;
     render(
       <ToastProvider>
-        <ToastHarness onReady={(api) => (ctx = api)} />
+        <ToastHarness onChange={(api) => (ctx = api)} />
       </ToastProvider>,
     );
 
     expect(ctx).not.toBeNull();
-    const api = ctx as ToastApi;
+    const api = () => ctx as ToastApi;
 
     act(() => {
-      api.push({ message: 'Hello', tone: 'info' });
-      api.push({ message: 'World', tone: 'error' });
+      api().push({ message: 'Hello', tone: 'info' });
+      api().push({ message: 'World', tone: 'error' });
     });
 
-    expect(api.toasts).toHaveLength(2);
+    await waitFor(() => expect(api().toasts).toHaveLength(2));
 
     act(() => {
-      api.dismiss(api.toasts[0].id);
+      api().dismiss(api().toasts[0].id);
     });
 
-    expect(api.toasts).toHaveLength(1);
-    expect(api.toasts[0].message).toBe('World');
+    await waitFor(() => {
+      expect(api().toasts).toHaveLength(1);
+      expect(api().toasts[0].message).toBe('World');
+    });
   });
 
-  it('auto dismisses toasts after duration', () => {
+  it('auto dismisses toasts after duration', async () => {
     let ctx: ToastApi | null = null;
     render(
       <ToastProvider>
-        <ToastHarness onReady={(api) => (ctx = api)} />
+        <ToastHarness onChange={(api) => (ctx = api)} />
       </ToastProvider>,
     );
 
-    const api = ctx as ToastApi;
+    const api = () => ctx as ToastApi;
 
     act(() => {
-      api.push({ message: 'Ephemeral', tone: 'info', duration: 2000 });
+      api().push({ message: 'Ephemeral', tone: 'info', duration: 2000 });
     });
 
-    expect(api.toasts).toHaveLength(1);
+    await waitFor(() => expect(api().toasts).toHaveLength(1));
 
     act(() => {
       jest.advanceTimersByTime(2500);
     });
 
-    expect(api.toasts).toHaveLength(0);
+    await waitFor(() => expect(api().toasts).toHaveLength(0));
   });
 });

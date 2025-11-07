@@ -1,8 +1,8 @@
 import { render } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { HomeScreen } from '@screens/HomeScreen';
 import { ToastProvider } from '@context/ToastContext';
+import { HomeScreen } from '@screens/HomeScreen';
 
 jest.mock('@react-navigation/native', () => {
   const actual = jest.requireActual('@react-navigation/native');

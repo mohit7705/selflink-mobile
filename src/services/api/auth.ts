@@ -12,6 +12,10 @@ type Credentials = {
   password: string;
 };
 
+type RegisterPayload = Credentials & {
+  name?: string;
+};
+
 const MOCK_USER_NAME = 'Selflink Explorer';
 
 export async function loginWithPassword(
@@ -44,5 +48,28 @@ export async function loginWithPassword(
       token: 'mock-token',
       user: localUser,
     };
+  }
+}
+
+export async function registerUser(payload: RegisterPayload): Promise<LoginResponse> {
+  try {
+    const result = await apiClient.request<LoginResponse>('/api/v1/auth/register/', {
+      method: 'POST',
+      auth: false,
+      body: payload,
+    });
+
+    if (!result?.token) {
+      throw new Error('Missing token in response');
+    }
+
+    let user = result.user;
+    if (!user) {
+      user = await fetchCurrentUser();
+    }
+    return { token: result.token, user };
+  } catch (error) {
+    console.warn('Registration failed', error);
+    throw error;
   }
 }
