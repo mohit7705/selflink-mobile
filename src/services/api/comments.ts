@@ -82,3 +82,9 @@ export async function createComment(payload: CreateCommentPayload): Promise<Comm
     body: payload,
   });
 }
+
+export async function fetchComment(id: number): Promise<Comment> {
+  return apiClient.request<Comment>(`/api/v1/comments/${id}/`, {
+    method: 'GET',
+  });
+}
