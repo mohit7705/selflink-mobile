@@ -27,8 +27,8 @@
       "favicon": "./assets/favicon.png"
     },
     "extra": {
-      "backendUrl": "http://10.0.2.2:8000",
-      "healthEndpoint": "/api/health/"
+      "backendUrl": "http://127.0.0.1:8000/",
+      "healthEndpoint": "/api/v1/users/me/"
     }
   }
 }

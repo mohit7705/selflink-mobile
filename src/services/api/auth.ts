@@ -12,7 +12,7 @@ type Credentials = {
   password: string;
 };
 
-type RegisterPayload = Credentials & {
+export type RegisterPayload = Credentials & {
   name?: string;
   handle?: string;
   fullName?: string;
@@ -56,7 +56,7 @@ export async function loginWithPassword(
 
 export async function registerUser(payload: RegisterPayload): Promise<LoginResponse> {
   try {
-    const result = await apiClient.request<LoginResponse>('/api/v1/register/', {
+    const result = await apiClient.request<LoginResponse>('/api/v1/auth/register/', {
       method: 'POST',
       auth: false,
       body: payload,
