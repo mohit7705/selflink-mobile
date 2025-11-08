@@ -64,6 +64,17 @@ export type FeedResponse = {
   results: FeedItem[];
 };
 
+export type HomeHighlight = {
+  id: number;
+  post: FeedPost;
+  score: number;
+  created_at: string;
+};
+
+export type HomeHighlightsResponse = {
+  results: HomeHighlight[];
+};
+
 export type FeedQuery = {
   cursor?: string;
   ordering?: string;
@@ -89,4 +100,10 @@ export async function fetchHomeFeed(params: FeedQuery = {}): Promise<FeedRespons
   const qs = searchParams.toString();
   const path = `/api/v1/feed/home/${qs ? `?${qs}` : ''}`;
   return apiClient.request<FeedResponse>(path, { method: 'GET' });
+}
+
+export async function fetchHomeHighlights(): Promise<HomeHighlightsResponse> {
+  return apiClient.request<HomeHighlightsResponse>('/api/v1/home/highlights/', {
+    method: 'GET',
+  });
 }
