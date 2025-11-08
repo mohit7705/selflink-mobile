@@ -28,6 +28,7 @@ export function InboxScreen() {
   const { threads, loading, refreshing, loadMore, hasMore, refresh, createThread } =
     useThreads();
   const [handles, setHandles] = useState('');
+  const [ids, setIds] = useState('');
   const [message, setMessage] = useState('');
   const [title, setTitle] = useState('');
   const [creating, setCreating] = useState(false);
@@ -45,11 +46,23 @@ export function InboxScreen() {
       .split(',')
       .map((handle) => handle.trim())
       .filter(Boolean);
+    const participant_ids = ids
+      .split(',')
+      .map((value) => Number(value.trim()))
+      .filter((value) => !Number.isNaN(value));
 
-    if (participant_handles.length === 0 || !message.trim()) {
+    if (participant_handles.length === 0 && participant_ids.length === 0) {
       toast.push({
         tone: 'error',
-        message: 'Add at least one handle and a message.',
+        message: 'Add at least one participant handle or ID.',
+      });
+      return;
+    }
+
+    if (!message.trim()) {
+      toast.push({
+        tone: 'error',
+        message: 'Add an opening message.',
       });
       return;
     }
@@ -57,10 +70,12 @@ export function InboxScreen() {
       setCreating(true);
       const thread = await createThread({
         title: title.trim() || undefined,
-        participant_handles,
+        participant_handles: participant_handles.length ? participant_handles : undefined,
+        participant_ids: participant_ids.length ? participant_ids : undefined,
         initial_message: message.trim(),
       });
       setHandles('');
+      setIds('');
       setMessage('');
       setTitle('');
       openThread(thread.id);
@@ -119,14 +134,22 @@ export function InboxScreen() {
               value={title}
               onChangeText={setTitle}
             />
-            <TextInput
-              style={styles.input}
-              placeholder="Participant handles (comma separated)"
-              placeholderTextColor={theme.palette.graphite}
-              value={handles}
-              onChangeText={setHandles}
-              autoCapitalize="none"
-            />
+        <TextInput
+          style={styles.input}
+          placeholder="Participant handles (comma separated)"
+          placeholderTextColor={theme.palette.graphite}
+          value={handles}
+          onChangeText={setHandles}
+          autoCapitalize="none"
+        />
+        <TextInput
+          style={styles.input}
+          placeholder="Participant IDs (comma separated)"
+          placeholderTextColor={theme.palette.graphite}
+          value={ids}
+          onChangeText={setIds}
+          keyboardType="number-pad"
+        />
             <TextInput
               style={[styles.input, styles.messageInput]}
               placeholder="Opening message"

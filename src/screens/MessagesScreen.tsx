@@ -1,6 +1,6 @@
-import { RouteProp, useRoute } from '@react-navigation/native';
+import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -18,18 +18,27 @@ import { MetalPanel } from '@components/MetalPanel';
 import { useToast } from '@context/ToastContext';
 import { useMessages } from '@hooks/useMessages';
 import { RootStackParamList } from '@navigation/AppNavigator';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { theme } from '@theme/index';
-import { markThreadRead, sendTypingSignal } from '@services/api/threads';
-import { useState } from 'react';
+import {
+  getTypingStatus,
+  leaveThread,
+  markThreadRead,
+  sendTypingSignal,
+  TypingStatus,
+} from '@services/api/threads';
 
 type MessagesRoute = RouteProp<RootStackParamList, 'Messages'>;
 
 export function MessagesScreen() {
   const route = useRoute<MessagesRoute>();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const toast = useToast();
   const threadId = route.params.threadId;
   const [markingRead, setMarkingRead] = useState(false);
   const [typingSignal, setTypingSignal] = useState(false);
+  const [typingStatus, setTypingStatus] = useState<TypingStatus | null>(null);
+  const [leaving, setLeaving] = useState(false);
   const {
     messages,
     loading,
@@ -56,19 +65,42 @@ export function MessagesScreen() {
     }
   }, [markingRead, threadId, toast]);
 
-  const handleTypingSignal = useCallback(async () => {
-    if (typingSignal) return;
+  const handleLeaveThread = useCallback(async () => {
+    if (leaving) return;
     try {
-      setTypingSignal(true);
-      await sendTypingSignal(threadId);
-      toast.push({ tone: 'info', message: 'Typing signal sent.' });
+      setLeaving(true);
+      await leaveThread(threadId);
+      toast.push({ tone: 'info', message: 'Left thread.' });
+      navigation.goBack();
     } catch (error) {
-      console.warn('MessagesScreen: typing signal failed', error);
-      toast.push({ tone: 'error', message: 'Unable to send typing signal.' });
+      console.warn('MessagesScreen: leave thread failed', error);
+      toast.push({ tone: 'error', message: 'Unable to leave thread.' });
     } finally {
-      setTypingSignal(false);
+      setLeaving(false);
     }
-  }, [threadId, toast, typingSignal]);
+  }, [leaving, navigation, threadId, toast]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function pollTyping() {
+      try {
+        const status = await getTypingStatus(threadId);
+        if (!cancelled) {
+          setTypingStatus(status);
+        }
+      } catch (error) {
+        if (__DEV__) {
+          console.warn('MessagesScreen: typing status error', error);
+        }
+      }
+    }
+    pollTyping();
+    const interval = setInterval(pollTyping, 5000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [threadId]);
 
   const keyExtractor = useCallback((item: { id: number }) => String(item.id), []);
 
@@ -88,11 +120,16 @@ export function MessagesScreen() {
             disabled={markingRead}
           />
           <MetalButton
-            title={typingSignal ? 'Signaling…' : 'Send Typing Signal'}
-            onPress={handleTypingSignal}
-            disabled={typingSignal}
+            title={leaving ? 'Leaving…' : 'Leave Thread'}
+            onPress={handleLeaveThread}
+            disabled={leaving}
           />
         </View>
+        {typingStatus?.typing && (
+          <Text style={styles.typingText}>
+            {typingStatus.user?.name ?? typingStatus.user?.handle ?? 'Someone'} is typing…
+          </Text>
+        )}
       </MetalPanel>
 
       <FlatList
@@ -140,8 +177,14 @@ export function MessagesScreen() {
           multiline
         />
         <MetalButton
-          title={composer.sending ? 'Sending…' : 'Send'}
-          onPress={sendMessage}
+          title={composer.sending || typingSignal ? 'Sending…' : 'Send'}
+          onPress={async () => {
+            setTypingSignal(true);
+            await sendTypingSignal(threadId).catch(() => undefined);
+            await sendMessage();
+            setTypingSignal(false);
+          }}
+          disabled={composer.sending}
         />
       </View>
     </SafeAreaView>
@@ -167,6 +210,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: theme.spacing.sm,
+  },
+  typingText: {
+    color: theme.palette.silver,
+    ...theme.typography.caption,
+    marginTop: theme.spacing.xs,
   },
   list: {
     flex: 1,

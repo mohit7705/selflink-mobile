@@ -78,3 +78,18 @@ export async function sendTypingSignal(
     body: payload,
   });
 }
+
+export type TypingStatus = {
+  typing: boolean;
+  user?: MessageUser;
+};
+
+export async function getTypingStatus(id: number): Promise<TypingStatus> {
+  return apiClient.request<TypingStatus>(`/api/v1/threads/${id}/typing/`, {
+    method: 'GET',
+  });
+}
+
+export async function leaveThread(id: number): Promise<void> {
+  await apiClient.request(`/api/v1/threads/${id}/leave/`, { method: 'POST' });
+}
