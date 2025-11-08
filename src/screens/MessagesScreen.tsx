@@ -1,3 +1,4 @@
+import { RouteProp, useRoute } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback } from 'react';
 import {
@@ -15,9 +16,14 @@ import { MessageBubble } from '@components/MessageBubble';
 import { MetalButton } from '@components/MetalButton';
 import { MetalPanel } from '@components/MetalPanel';
 import { useMessages } from '@hooks/useMessages';
+import { RootStackParamList } from '@navigation/AppNavigator';
 import { theme } from '@theme/index';
 
+type MessagesRoute = RouteProp<RootStackParamList, 'Messages'>;
+
 export function MessagesScreen() {
+  const route = useRoute<MessagesRoute>();
+  const threadId = route.params?.threadId ?? 0;
   const {
     messages,
     loading,
@@ -28,7 +34,7 @@ export function MessagesScreen() {
     updateComposer,
     sendMessage,
     refresh,
-  } = useMessages({ ordering: '-created_at' });
+  } = useMessages({ ordering: '-created_at', threadId });
 
   const keyExtractor = useCallback((item: { id: number }) => String(item.id), []);
 

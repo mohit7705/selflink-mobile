@@ -6,6 +6,7 @@ import { enableScreens } from 'react-native-screens';
 
 import { useAuth } from '@hooks/useAuth';
 import { CommunityScreen } from '@screens/CommunityScreen';
+import { InboxScreen } from '@screens/InboxScreen';
 import { HomeScreen } from '@screens/HomeScreen';
 import { LoginScreen } from '@screens/LoginScreen';
 import { MentorScreen } from '@screens/MentorScreen';
@@ -22,7 +23,8 @@ enableScreens(true);
 export type RootStackParamList = {
   Home: undefined;
   Community: undefined;
-  Messages: undefined;
+  Inbox: undefined;
+  Messages: { threadId?: number } | undefined;
   Mentor: undefined;
   SoulMatch: undefined;
   Payments: undefined;
@@ -85,6 +87,11 @@ export function AppNavigator() {
             name="Community"
             component={CommunityScreen}
             options={{ headerTitle: 'Community' }}
+          />
+          <Stack.Screen
+            name="Inbox"
+            component={InboxScreen}
+            options={{ headerTitle: 'Inbox' }}
           />
           <Stack.Screen
             name="Messages"

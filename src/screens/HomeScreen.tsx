@@ -36,7 +36,7 @@ export function HomeScreen() {
   }, [navigation]);
 
   const handleMessagesPress = useCallback(() => {
-    navigation.navigate('Messages');
+    navigation.navigate('Inbox');
   }, [navigation]);
 
   const handleCommunityPress = useCallback(() => {
