@@ -1,6 +1,6 @@
-import { RouteProp, useRoute } from '@react-navigation/native';
+import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -16,25 +16,36 @@ import { MessageBubble } from '@components/MessageBubble';
 import { MetalButton } from '@components/MetalButton';
 import { MetalPanel } from '@components/MetalPanel';
 import { useToast } from '@context/ToastContext';
+import { useAuth } from '@hooks/useAuth';
 import { useMessages } from '@hooks/useMessages';
 import { RootStackParamList } from '@navigation/AppNavigator';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { theme } from '@theme/index';
 import {
   getTypingStatus,
+  leaveThread,
   markThreadRead,
   sendTypingSignal,
   TypingStatus,
 } from '@services/api/threads';
+import { env } from '@config/env';
 
 type MessagesRoute = RouteProp<RootStackParamList, 'Messages'>;
 
 export function MessagesScreen() {
   const route = useRoute<MessagesRoute>();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const toast = useToast();
+  const { token } = useAuth();
   const threadId = route.params.threadId;
   const [markingRead, setMarkingRead] = useState(false);
   const [typingSignal, setTypingSignal] = useState(false);
   const [typingStatus, setTypingStatus] = useState<TypingStatus | null>(null);
+  const [wsConnected, setWsConnected] = useState(false);
+  const [leaving, setLeaving] = useState(false);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const composerTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const composerTypingActiveRef = useRef(false);
   const {
     messages,
     loading,
@@ -61,7 +72,81 @@ export function MessagesScreen() {
     }
   }, [markingRead, threadId, toast]);
 
+  const handleLeaveThread = useCallback(async () => {
+    if (leaving) return;
+    try {
+      setLeaving(true);
+      await leaveThread(threadId);
+      toast.push({ tone: 'info', message: 'Left thread.' });
+      navigation.goBack();
+    } catch (error) {
+      console.warn('MessagesScreen: leave thread failed', error);
+      toast.push({ tone: 'error', message: 'Unable to leave thread.' });
+    } finally {
+      setLeaving(false);
+    }
+  }, [leaving, navigation, threadId, toast]);
+
   useEffect(() => {
+    if (!token) {
+      return;
+    }
+    let closed = false;
+    let ws: WebSocket | null = null;
+
+    const connect = () => {
+      const realtime = new URL(env.realtimeUrl);
+      realtime.searchParams.set('token', token);
+      ws = new WebSocket(realtime.toString());
+      ws.onopen = () => setWsConnected(true);
+      ws.onmessage = (event) => {
+        try {
+          const payload = JSON.parse(event.data);
+          if (payload?.type === 'typing' && payload.thread_id === threadId) {
+            if (payload.is_typing) {
+              setTypingStatus({ typing: true });
+              if (typingTimeoutRef.current) {
+                clearTimeout(typingTimeoutRef.current);
+              }
+              typingTimeoutRef.current = setTimeout(
+                () => setTypingStatus(null),
+                7000,
+              );
+            } else {
+              setTypingStatus(null);
+            }
+          }
+        } catch (error) {
+          if (__DEV__) {
+            console.warn('MessagesScreen: ws parse error', error);
+          }
+        }
+      };
+      ws.onerror = (error) => {
+        if (__DEV__) {
+          console.warn('MessagesScreen: websocket error', error);
+        }
+      };
+      ws.onclose = () => {
+        setWsConnected(false);
+        if (!closed) {
+          setTimeout(connect, 5000);
+        }
+      };
+    };
+
+    connect();
+    return () => {
+      closed = true;
+      ws?.close();
+      setWsConnected(false);
+    };
+  }, [threadId, token]);
+
+  useEffect(() => {
+    if (wsConnected) {
+      return;
+    }
     let cancelled = false;
     async function pollTyping() {
       try {
@@ -81,7 +166,32 @@ export function MessagesScreen() {
       cancelled = true;
       clearInterval(interval);
     };
-  }, [threadId]);
+  }, [threadId, wsConnected]);
+
+  const notifyTyping = useCallback(
+    async (active: boolean) => {
+      try {
+        await sendTypingSignal(threadId, { typing: active });
+      } catch (error) {
+        if (__DEV__) {
+          console.warn('MessagesScreen: typing signal failed', error);
+        }
+      }
+    },
+    [threadId],
+  );
+
+  useEffect(() => {
+    return () => {
+      notifyTyping(false).catch(() => undefined);
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      if (composerTimeoutRef.current) {
+        clearTimeout(composerTimeoutRef.current);
+      }
+    };
+  }, [notifyTyping]);
 
   const keyExtractor = useCallback((item: { id: number }) => String(item.id), []);
 
@@ -99,6 +209,11 @@ export function MessagesScreen() {
             title={markingRead ? 'Marking…' : 'Mark as Read'}
             onPress={handleMarkRead}
             disabled={markingRead}
+          />
+          <MetalButton
+            title={leaving ? 'Leaving…' : 'Leave Thread'}
+            onPress={handleLeaveThread}
+            disabled={leaving}
           />
         </View>
         {typingStatus?.typing && (
@@ -149,15 +264,29 @@ export function MessagesScreen() {
           placeholder="Send a signal…"
           placeholderTextColor={theme.palette.graphite}
           value={composer.body}
-          onChangeText={updateComposer}
+          onChangeText={(text) => {
+            updateComposer(text);
+            if (!composerTypingActiveRef.current) {
+              composerTypingActiveRef.current = true;
+              notifyTyping(true);
+            }
+            if (composerTimeoutRef.current) {
+              clearTimeout(composerTimeoutRef.current);
+            }
+            composerTimeoutRef.current = setTimeout(() => {
+              composerTypingActiveRef.current = false;
+              notifyTyping(false);
+            }, 5000);
+          }}
           multiline
         />
         <MetalButton
           title={composer.sending || typingSignal ? 'Sending…' : 'Send'}
           onPress={async () => {
             setTypingSignal(true);
-            await sendTypingSignal(threadId).catch(() => undefined);
+            await notifyTyping(true);
             await sendMessage();
+            await notifyTyping(false);
             setTypingSignal(false);
           }}
           disabled={composer.sending}

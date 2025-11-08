@@ -88,3 +88,9 @@ export async function getTypingStatus(id: number): Promise<TypingStatus> {
     method: 'GET',
   });
 }
+
+export async function leaveThread(id: number): Promise<void> {
+  await apiClient.request(`/api/v1/threads/${id}/leave/`, {
+    method: 'POST',
+  });
+}

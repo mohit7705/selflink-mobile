@@ -34,7 +34,7 @@ src/
 
 ## Environment Config
 
-- `app.json` now exposes `expo.extra.backendUrl` and `expo.extra.healthEndpoint`. Adjust these per environment (the fallback points to `http://10.0.2.2:8000` so the Android emulator reaches your local Django server).
+- `app.json` now exposes `expo.extra.backendUrl`, `expo.extra.healthEndpoint`, and an optional `expo.extra.realtimeUrl` (defaults to `ws(s)` version of `backendUrl` + `/ws`). Adjust these per environment (the fallback points to `http://10.0.2.2:8000` so the Android emulator reaches your local Django server).
 - `src/config/env.ts` reads those values, and `src/hooks/useBackendHealth.ts` uses them to test the Django API’s `/api/health/` endpoint by default.
 - Extend `src/services/api/client.ts` to add authenticated requests once login is wired.
 
@@ -49,7 +49,7 @@ src/
 - `src/services/api/user.ts` handles `/api/v1/users/*` (list/detail/follow/followers) plus the `/api/v1/users/me/` hydration flow used by AuthContext.
 - `src/hooks/useUsersDirectory.ts` provides a reusable controller for searching, paginating, and following users against the `/api/v1/users/*` endpoints.
 - `src/hooks/usePaymentsCatalog.ts` hydrates gifts, plans, and subscription data so payments UI can stay reactive and shareable across platforms.
-- `src/hooks/useMessages.ts` wraps `/api/v1/messages/` with pagination + send helpers so chat surfaces can share one data source.
+- `src/hooks/useMessages.ts` wraps `/api/v1/messages/`, emits typing signals, and ties into the realtime websocket feed for thread activity (with REST fallback).
 - `src/services/api/comments.ts` wraps `/api/v1/comments/` so shared clients (mobile/desktop) can page through comment threads and perform CRUD via the same helper.
 - `src/services/api/devices.ts` handles `/api/v1/devices/` CRUD so mobile/web can register or remove push tokens consistently.
 - `src/services/api/feed.ts` wraps `/api/v1/feed/home/` and `/api/v1/home/highlights/` so all clients can fetch both the paginated timeline and highlight rail with the same helper.
@@ -76,7 +76,7 @@ src/
 - `PaymentsScreen` now renders live plan/gift catalogs, echoing Apple’s polish (clarity), Torvalds’ pragmatism (structured data), and Musk’s ambition (forward-looking copy).
 - `MessagesScreen` stitches together `useMessages` + metallic message bubbles so users can browse + send chats with the new API.
 - `InboxScreen` lists threads via `useThreads`, includes a metallic “New Thread” composer for numeric participant IDs (matching the backend contract), and hands off the selected conversation to `MessagesScreen`.
-- `MessagesScreen` now enforces a selected thread, shows live typing indicators via `/threads/{id}/typing/`, and exposes mark-read tooling (leave actions will land once the backend route ships).
+- `MessagesScreen` now enforces a selected thread, shows live typing indicators via `/threads/{id}/typing/` or the `/ws` realtime feed, and exposes mark-read/leave-thread tooling.
 - `MentorScreen`, `SoulMatchScreen`, and `PaymentsScreen` provide polished placeholder flows ready for integrating Django endpoints.
 - `ProfileScreen` lets users tweak display name or avatar URL (with inline metallic toasts) and sign out.
 - `AppNavigator` registers the stack screens with metallic theming; add new routes here as features land.

@@ -6,8 +6,13 @@ const backendUrl =
   typeof extra.backendUrl === 'string' ? extra.backendUrl : 'http://127.0.0.1:8000/';
 const healthEndpoint =
   typeof extra.healthEndpoint === 'string' ? extra.healthEndpoint : '/api/health/';
+const realtimeUrl =
+  typeof extra.realtimeUrl === 'string'
+    ? extra.realtimeUrl
+    : backendUrl.replace(/^http/, 'ws').replace(/\/$/, '') + '/ws';
 
 export const env = {
   backendUrl,
   healthEndpoint,
+  realtimeUrl,
 };
