@@ -88,3 +88,34 @@ export async function fetchComment(id: number): Promise<Comment> {
     method: 'GET',
   });
 }
+
+export type UpdateCommentPayload = {
+  text: string;
+  parent?: number | null;
+};
+
+export async function updateComment(
+  id: number,
+  payload: UpdateCommentPayload,
+): Promise<Comment> {
+  return apiClient.request<Comment>(`/api/v1/comments/${id}/`, {
+    method: 'PUT',
+    body: payload,
+  });
+}
+
+export async function patchComment(
+  id: number,
+  payload: Partial<UpdateCommentPayload>,
+): Promise<Comment> {
+  return apiClient.request<Comment>(`/api/v1/comments/${id}/`, {
+    method: 'PATCH',
+    body: payload,
+  });
+}
+
+export async function deleteComment(id: number): Promise<void> {
+  await apiClient.request(`/api/v1/comments/${id}/`, {
+    method: 'DELETE',
+  });
+}
