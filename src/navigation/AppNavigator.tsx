@@ -15,6 +15,7 @@ import { PaymentsScreen } from '@screens/PaymentsScreen';
 import { ProfileScreen } from '@screens/ProfileScreen';
 import { RegisterScreen } from '@screens/RegisterScreen';
 import { SoulMatchScreen } from '@screens/SoulMatchScreen';
+import { WalletLedgerScreen } from '@screens/WalletLedgerScreen';
 import { ToastContainer } from '@screens/ToastContainer';
 import { theme } from '@theme/index';
 
@@ -29,6 +30,7 @@ export type RootStackParamList = {
   SoulMatch: undefined;
   Payments: undefined;
   Profile: undefined;
+  WalletLedger: undefined;
 };
 
 export type AuthStackParamList = {
@@ -117,6 +119,11 @@ export function AppNavigator() {
             name="Payments"
             component={PaymentsScreen}
             options={{ headerTitle: 'Payments & Wallet' }}
+          />
+          <Stack.Screen
+            name="WalletLedger"
+            component={WalletLedgerScreen}
+            options={{ headerTitle: 'Wallet Ledger' }}
           />
         </Stack.Navigator>
       ) : (

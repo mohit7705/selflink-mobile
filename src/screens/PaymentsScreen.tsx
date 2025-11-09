@@ -1,3 +1,5 @@
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useMemo } from 'react';
 import {
@@ -12,9 +14,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MetalButton } from '@components/MetalButton';
 import { MetalPanel } from '@components/MetalPanel';
 import { usePaymentsCatalog } from '@hooks/usePaymentsCatalog';
+import { RootStackParamList } from '@navigation/AppNavigator';
 import { theme } from '@theme/index';
 
 export function PaymentsScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { gifts, plans, activeSubscription, loading, refresh } = usePaymentsCatalog();
 
   const handleOpenSubscription = useCallback(() => {
@@ -22,8 +26,8 @@ export function PaymentsScreen() {
   }, []);
 
   const handleOpenWallet = useCallback(() => {
-    // TODO: Navigate to wallet ledger once API is wired
-  }, []);
+    navigation.navigate('WalletLedger');
+  }, [navigation]);
 
   const planFeatureMap = useMemo(
     () =>
