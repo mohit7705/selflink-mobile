@@ -25,7 +25,7 @@ const initialComposer: MessageComposerState = {
   sending: false,
 };
 
-export function useMessages(options: Options = {}) {
+export function useMessages(options: Options) {
   const toast = useToast();
   const [messages, setMessages] = useState<Message[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
