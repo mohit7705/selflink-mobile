@@ -12,6 +12,7 @@ export const theme = {
     md: 20,
     lg: 28,
     pill: 999,
+    full: 999,
   },
   shadow: {
     panel: {
