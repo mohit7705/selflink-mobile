@@ -146,14 +146,14 @@ export function InboxScreen() {
           ) : null
         }
         ListEmptyComponent={
-          !loading && (
+          !loading ? (
             <View style={styles.empty}>
               <Text style={styles.emptyTitle}>No threads yet</Text>
               <Text style={styles.emptyCopy}>
                 Once conversations begin, they’ll appear right here.
               </Text>
             </View>
-          )
+          ) : null
         }
         ListHeaderComponent={
           <MetalPanel glow>
