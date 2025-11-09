@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { act, renderHook } from '@testing-library/react-native';
+import { act, renderHook, waitFor } from '@testing-library/react-native';
 
 import { ToastProvider } from '@context/ToastContext';
 import { useMessages } from '@hooks/useMessages';
@@ -69,7 +69,7 @@ describe('useMessages', () => {
       ],
     });
 
-    const { result, waitFor } = renderHook(() => useMessages({ threadId: 99 }), {
+    const { result } = renderHook(() => useMessages({ threadId: 99 }), {
       wrapper,
     });
 
@@ -93,7 +93,7 @@ describe('useMessages', () => {
     };
     (mockCreateMessage as jest.Mock).mockResolvedValue(sentMessage);
 
-    const { result, waitFor } = renderHook(() => useMessages({ threadId: 99 }), {
+    const { result } = renderHook(() => useMessages({ threadId: 99 }), {
       wrapper,
     });
 
@@ -101,6 +101,9 @@ describe('useMessages', () => {
 
     await act(async () => {
       result.current.updateComposer('Hi there');
+    });
+
+    await act(async () => {
       await result.current.sendMessage();
     });
 

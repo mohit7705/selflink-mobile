@@ -12,6 +12,7 @@ jest.mock('@services/api/client', () => {
     apiClient: {
       ...actual.apiClient,
       setToken: jest.fn(),
+      setRefreshHandler: jest.fn(),
     },
   };
 });

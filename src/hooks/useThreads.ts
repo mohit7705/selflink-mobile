@@ -16,20 +16,22 @@ export function useThreads(options: Options = {}) {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
 
-  const fetchThreads = useCallback(
-    async (reset: boolean) => {
-      if (reset) {
+  const pageSize = options.pageSize ?? 20;
+
+  const loadPage = useCallback(
+    async (replace: boolean, cursorValue: string | null) => {
+      if (replace) {
         setRefreshing(true);
       } else {
         setLoadingMore(true);
       }
       try {
         const response = await listThreads({
-          page_size: options.pageSize ?? 20,
-          cursor: reset ? undefined : cursor ?? undefined,
+          page_size: pageSize,
+          cursor: cursorValue ?? undefined,
           ordering: '-updated_at',
         });
-        setThreads((prev) => (reset ? response.results : [...prev, ...response.results]));
+        setThreads((prev) => (replace ? response.results : [...prev, ...response.results]));
         setCursor(response.next);
         setHasMore(Boolean(response.next));
       } catch (error) {
@@ -41,12 +43,12 @@ export function useThreads(options: Options = {}) {
         setLoadingMore(false);
       }
     },
-    [cursor, options.pageSize, toast],
+    [pageSize, toast],
   );
 
   useEffect(() => {
-    fetchThreads(true);
-  }, [fetchThreads]);
+    loadPage(true, null);
+  }, [loadPage]);
 
   const startThread = useCallback(
     async (payload: Parameters<typeof createThread>[0]) => {
@@ -64,17 +66,21 @@ export function useThreads(options: Options = {}) {
     [toast],
   );
 
+  const refresh = useCallback(() => loadPage(true, null), [loadPage]);
+
+  const loadMore = useCallback(async () => {
+    if (!hasMore || loadingMore) return;
+    await loadPage(false, cursor);
+  }, [cursor, hasMore, loadPage, loadingMore]);
+
   return {
     threads,
     loading,
     refreshing,
     loadingMore,
     hasMore,
-    refresh: () => fetchThreads(true),
-    loadMore: () => {
-      if (!hasMore || loadingMore) return;
-      fetchThreads(false);
-    },
+    refresh,
+    loadMore,
     createThread: startThread,
   };
 }

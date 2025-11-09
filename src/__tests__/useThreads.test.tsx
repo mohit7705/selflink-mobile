@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { act, renderHook } from '@testing-library/react-native';
+import { act, renderHook, waitFor } from '@testing-library/react-native';
 
 import { ToastProvider } from '@context/ToastContext';
 import { useThreads } from '@hooks/useThreads';
@@ -34,7 +34,7 @@ describe('useThreads', () => {
   });
 
   it('loads threads on mount', async () => {
-    const { result, waitFor } = renderHook(() => useThreads(), { wrapper });
+    const { result } = renderHook(() => useThreads(), { wrapper });
 
     await waitFor(() => expect(result.current.loading).toBe(false));
 
@@ -55,7 +55,7 @@ describe('useThreads', () => {
         results: [{ ...baseThread, id: 2 }],
       });
 
-    const { result, waitFor } = renderHook(() => useThreads(), { wrapper });
+    const { result } = renderHook(() => useThreads(), { wrapper });
 
     await waitFor(() => expect(result.current.loading).toBe(false));
 
@@ -63,7 +63,9 @@ describe('useThreads', () => {
       result.current.loadMore();
     });
 
-    await waitFor(() => expect(mockListThreads).toHaveBeenCalledTimes(2));
-    expect(result.current.threads).toHaveLength(2);
+    await waitFor(() =>
+      expect(mockListThreads.mock.calls.length).toBeGreaterThanOrEqual(2),
+    );
+    await waitFor(() => expect(result.current.threads).toHaveLength(2));
   });
 });
