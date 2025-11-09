@@ -56,7 +56,17 @@ export function MessagesScreen() {
     updateComposer,
     sendMessage,
     refresh,
-  } = useMessages({ ordering: '-created_at', threadId });
+  } = useMessages({
+    ordering: '-created_at',
+    threadId,
+    onThreadMissing: () => {
+      toast.push({
+        tone: 'info',
+        message: 'This thread is no longer available.',
+      });
+      navigation.goBack();
+    },
+  });
 
   const handleMarkRead = useCallback(async () => {
     if (markingRead) return;

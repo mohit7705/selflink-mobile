@@ -12,6 +12,7 @@ type Options = {
   threadId: number;
   pageSize?: number;
   ordering?: string;
+  onThreadMissing?: () => void;
 };
 
 type MessageComposerState = {
@@ -69,13 +70,16 @@ export function useMessages(options: Options = {}) {
         setHasMore(Boolean(response.next));
       } catch (error) {
         handleError(error, 'Unable to load messages.');
+        if (error instanceof Error && error.message.includes('(404')) {
+          options.onThreadMissing?.();
+        }
       } finally {
         setLoading(false);
         setRefreshing(false);
         setLoadingMore(false);
       }
     },
-    [cursor, handleError, query],
+    [cursor, handleError, options.onThreadMissing, query],
   );
 
   useEffect(() => {
