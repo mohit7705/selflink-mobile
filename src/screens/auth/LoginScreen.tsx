@@ -9,10 +9,12 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { useAuthStore } from '@store/authStore';
+import { theme } from '@theme';
 import type { AuthStackParamList } from '@navigation/types';
 
 type Navigation = NativeStackNavigationProp<AuthStackParamList, 'Login'>;
@@ -43,100 +45,137 @@ export function LoginScreen() {
   }, [navigation]);
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <View style={styles.card}>
-        <Text style={styles.title}>Welcome back</Text>
-        <Text style={styles.subtitle}>Sign in to continue to SelfLink</Text>
-        <TextInput
-          placeholder="Email"
-          placeholderTextColor="#94A3B8"
-          autoCapitalize="none"
-          keyboardType="email-address"
-          style={styles.input}
-          value={email}
-          onChangeText={(text) => {
-            setEmail(text);
-            if (error) {
-              setError(null);
-            }
-          }}
-        />
-        <TextInput
-          placeholder="Password"
-          placeholderTextColor="#94A3B8"
-          secureTextEntry
-          style={styles.input}
-          value={password}
-          onChangeText={(text) => {
-            setPassword(text);
-            if (error) {
-              setError(null);
-            }
-          }}
-        />
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
-        <TouchableOpacity style={styles.button} onPress={handleSubmit} disabled={isAuthenticating}>
-          <Text style={styles.buttonLabel}>{isAuthenticating ? 'Signing in…' : 'Sign in'}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.footerLink} onPress={handleNavigateRegister}>
-          <Text style={styles.footerText}>Need an account? Create one</Text>
-        </TouchableOpacity>
-      </View>
-    </KeyboardAvoidingView>
+    <LinearGradient colors={theme.gradients.appBackground} style={styles.gradient}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <View style={styles.card}>
+          <LinearGradient colors={theme.gradients.accent} style={styles.cardAccent} />
+          <Text style={styles.title}>Welcome back</Text>
+          <Text style={styles.subtitle}>Sign in to continue to SelfLink</Text>
+          <TextInput
+            placeholder="Email"
+            placeholderTextColor={theme.text.muted}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            style={styles.input}
+            value={email}
+            onChangeText={(text) => {
+              setEmail(text);
+              if (error) {
+                setError(null);
+              }
+            }}
+          />
+          <TextInput
+            placeholder="Password"
+            placeholderTextColor={theme.text.muted}
+            secureTextEntry
+            style={styles.input}
+            value={password}
+            onChangeText={(text) => {
+              setPassword(text);
+              if (error) {
+                setError(null);
+              }
+            }}
+          />
+          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+          <TouchableOpacity
+            style={styles.buttonWrapper}
+            onPress={handleSubmit}
+            disabled={isAuthenticating}
+            activeOpacity={0.9}
+          >
+            <LinearGradient
+              colors={theme.gradients.cta}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={[styles.button, isAuthenticating && styles.buttonDisabled]}
+            >
+              <Text style={styles.buttonLabel}>
+                {isAuthenticating ? 'Signing in…' : 'Sign in'}
+              </Text>
+            </LinearGradient>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.footerLink} onPress={handleNavigateRegister}>
+            <Text style={styles.footerText}>Need an account? Create one</Text>
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
+  gradient: {
+    flex: 1,
+  },
   container: {
     flex: 1,
     justifyContent: 'center',
-    padding: 24,
-    backgroundColor: '#020617',
+    padding: theme.spacing.xl,
   },
   card: {
-    backgroundColor: '#0F172A',
-    borderRadius: 24,
-    padding: 24,
-    gap: 16,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.radii.lg,
+    padding: theme.spacing.xl,
+    gap: theme.spacing.lg,
+    overflow: 'hidden',
+    ...theme.shadows.card,
+  },
+  cardAccent: {
+    position: 'absolute',
+    top: -40,
+    right: -60,
+    width: 180,
+    height: 180,
+    opacity: 0.15,
+    borderRadius: 90,
   },
   title: {
-    color: '#F9FAFB',
-    fontSize: 24,
-    fontWeight: '700',
+    color: theme.text.primary,
+    ...theme.typography.headingL,
   },
   subtitle: {
-    color: '#94A3B8',
+    color: theme.text.secondary,
+    ...theme.typography.subtitle,
   },
   input: {
-    backgroundColor: '#1E293B',
-    borderRadius: 12,
-    padding: 14,
-    color: '#F8FAFC',
+    backgroundColor: theme.colors.surfaceAlt,
+    borderRadius: theme.radii.md,
+    padding: theme.spacing.lg,
+    color: theme.text.primary,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  buttonWrapper: {
+    borderRadius: theme.radii.lg,
+    ...theme.shadows.button,
   },
   button: {
-    backgroundColor: '#6366F1',
-    paddingVertical: 14,
-    borderRadius: 12,
+    paddingVertical: theme.spacing.md,
+    borderRadius: theme.radii.lg,
     alignItems: 'center',
   },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
   buttonLabel: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 16,
+    color: theme.text.primary,
+    ...theme.typography.button,
   },
   errorText: {
-    color: '#F87171',
+    color: theme.colors.error,
     textAlign: 'center',
   },
   footerLink: {
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: theme.spacing.md,
   },
   footerText: {
-    color: '#C084FC',
-    fontWeight: '600',
+    color: theme.text.secondary,
+    ...theme.typography.body,
   },
 });

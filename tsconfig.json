@@ -9,6 +9,7 @@
       "@store/*": ["src/store/*"],
       "@schemas/*": ["src/types/*"],
       "@screens/*": ["src/screens/*"],
+      "@theme": ["src/theme"],
       "@theme/*": ["src/theme/*"],
       "@navigation/*": ["src/navigation/*"],
       "@utils/*": ["src/utils/*"],

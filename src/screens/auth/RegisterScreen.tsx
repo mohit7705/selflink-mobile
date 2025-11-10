@@ -9,10 +9,12 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { useAuthStore } from '@store/authStore';
+import { theme } from '@theme';
 import type { AuthStackParamList } from '@navigation/types';
 
 type Navigation = NativeStackNavigationProp<AuthStackParamList, 'Register'>;
@@ -45,120 +47,161 @@ export function RegisterScreen() {
   }, [navigation]);
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <View style={styles.card}>
-        <Text style={styles.title}>Create your account</Text>
-        <TextInput
-          placeholder="Full name"
-          placeholderTextColor="#94A3B8"
-          style={styles.input}
-          value={name}
-          onChangeText={(text) => {
-            setName(text);
-            if (error) {
-              setError(null);
-            }
-          }}
-        />
-        <TextInput
-          placeholder="Handle"
-          placeholderTextColor="#94A3B8"
-          autoCapitalize="none"
-          style={styles.input}
-          value={handle}
-          onChangeText={(text) => {
-            setHandle(text);
-            if (error) {
-              setError(null);
-            }
-          }}
-        />
-        <TextInput
-          placeholder="Email"
-          placeholderTextColor="#94A3B8"
-          autoCapitalize="none"
-          keyboardType="email-address"
-          style={styles.input}
-          value={email}
-          onChangeText={(text) => {
-            setEmail(text);
-            if (error) {
-              setError(null);
-            }
-          }}
-        />
-        <TextInput
-          placeholder="Password"
-          placeholderTextColor="#94A3B8"
-          secureTextEntry
-          style={styles.input}
-          value={password}
-          onChangeText={(text) => {
-            setPassword(text);
-            if (error) {
-              setError(null);
-            }
-          }}
-        />
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
-        <TouchableOpacity style={styles.button} onPress={handleSubmit} disabled={isAuthenticating}>
-          <Text style={styles.buttonLabel}>{isAuthenticating ? 'Creating…' : 'Create account'}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.footerLink} onPress={handleNavigateLogin}>
-          <Text style={styles.footerText}>Already have an account? Sign in</Text>
-        </TouchableOpacity>
-      </View>
-    </KeyboardAvoidingView>
+    <LinearGradient colors={theme.gradients.appBackground} style={styles.gradient}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <View style={styles.card}>
+          <LinearGradient colors={theme.gradients.matrix} style={styles.cardAccent} />
+          <Text style={styles.title}>Create your account</Text>
+          <Text style={styles.subtitle}>Define your handle and sync your personal matrix.</Text>
+          <TextInput
+            placeholder="Full name"
+            placeholderTextColor={theme.text.muted}
+            style={styles.input}
+            value={name}
+            onChangeText={(text) => {
+              setName(text);
+              if (error) {
+                setError(null);
+              }
+            }}
+          />
+          <TextInput
+            placeholder="Handle"
+            placeholderTextColor={theme.text.muted}
+            autoCapitalize="none"
+            style={styles.input}
+            value={handle}
+            onChangeText={(text) => {
+              setHandle(text);
+              if (error) {
+                setError(null);
+              }
+            }}
+          />
+          <TextInput
+            placeholder="Email"
+            placeholderTextColor={theme.text.muted}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            style={styles.input}
+            value={email}
+            onChangeText={(text) => {
+              setEmail(text);
+              if (error) {
+                setError(null);
+              }
+            }}
+          />
+          <TextInput
+            placeholder="Password"
+            placeholderTextColor={theme.text.muted}
+            secureTextEntry
+            style={styles.input}
+            value={password}
+            onChangeText={(text) => {
+              setPassword(text);
+              if (error) {
+                setError(null);
+              }
+            }}
+          />
+          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+          <TouchableOpacity
+            style={styles.buttonWrapper}
+            onPress={handleSubmit}
+            disabled={isAuthenticating}
+            activeOpacity={0.9}
+          >
+            <LinearGradient
+              colors={theme.gradients.cta}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={[styles.button, isAuthenticating && styles.buttonDisabled]}
+            >
+              <Text style={styles.buttonLabel}>
+                {isAuthenticating ? 'Creating…' : 'Create account'}
+              </Text>
+            </LinearGradient>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.footerLink} onPress={handleNavigateLogin}>
+            <Text style={styles.footerText}>Already have an account? Sign in</Text>
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
+  gradient: {
+    flex: 1,
+  },
   container: {
     flex: 1,
     justifyContent: 'center',
-    padding: 24,
-    backgroundColor: '#020617',
+    padding: theme.spacing.xl,
   },
   card: {
-    backgroundColor: '#0F172A',
-    borderRadius: 24,
-    padding: 24,
-    gap: 16,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.radii.lg,
+    padding: theme.spacing.xl,
+    gap: theme.spacing.lg,
+    overflow: 'hidden',
+    ...theme.shadows.card,
+  },
+  cardAccent: {
+    position: 'absolute',
+    top: -40,
+    left: -40,
+    width: 160,
+    height: 160,
+    opacity: 0.18,
+    borderRadius: 120,
   },
   title: {
-    color: '#F9FAFB',
-    fontSize: 24,
-    fontWeight: '700',
+    color: theme.text.primary,
+    ...theme.typography.headingL,
+  },
+  subtitle: {
+    color: theme.text.secondary,
+    ...theme.typography.body,
   },
   input: {
-    backgroundColor: '#1E293B',
-    borderRadius: 12,
-    padding: 14,
-    color: '#F8FAFC',
+    backgroundColor: theme.colors.surfaceAlt,
+    borderRadius: theme.radii.md,
+    padding: theme.spacing.lg,
+    color: theme.text.primary,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  buttonWrapper: {
+    borderRadius: theme.radii.lg,
+    ...theme.shadows.button,
   },
   button: {
-    backgroundColor: '#22D3EE',
-    paddingVertical: 14,
-    borderRadius: 12,
+    borderRadius: theme.radii.lg,
+    paddingVertical: theme.spacing.md,
     alignItems: 'center',
   },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
   buttonLabel: {
-    color: '#0F172A',
-    fontWeight: '600',
-    fontSize: 16,
+    color: theme.text.primary,
+    ...theme.typography.button,
   },
   errorText: {
-    color: '#F87171',
+    color: theme.colors.error,
     textAlign: 'center',
   },
   footerLink: {
     alignItems: 'center',
   },
   footerText: {
-    color: '#C084FC',
-    fontWeight: '600',
+    color: theme.text.secondary,
+    ...theme.typography.body,
   },
 });

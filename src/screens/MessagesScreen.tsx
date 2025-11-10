@@ -1,6 +1,7 @@
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -28,7 +29,7 @@ import {
   sendTypingSignal,
   TypingStatus,
 } from '@services/api/threads';
-import { theme } from '@theme/index';
+import { theme } from '@theme';
 
 type MessagesRoute = RouteProp<RootStackParamList, 'Messages'>;
 
@@ -212,9 +213,10 @@ export function MessagesScreen() {
   const keyExtractor = useCallback((item: { id: number }) => String(item.id), []);
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="light" />
-      <MetalPanel glow>
+    <LinearGradient colors={theme.gradients.appBackground} style={styles.gradient}>
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar style="light" />
+        <MetalPanel glow>
         <Text style={styles.heroTitle}>Messages</Text>
         <Text style={styles.heroSubtitle}>
           Inspired by Jobs’ obsession for detail, tempered by Linus’ clarity, aiming for
@@ -241,7 +243,7 @@ export function MessagesScreen() {
         )}
       </MetalPanel>
 
-      <FlatList
+        <FlatList
         style={styles.list}
         contentContainerStyle={styles.listContent}
         data={messages}
@@ -276,7 +278,7 @@ export function MessagesScreen() {
         }
       />
 
-      <View style={styles.composer}>
+        <View style={styles.composer}>
         <TextInput
           style={styles.input}
           placeholder="Send a signal…"
@@ -309,15 +311,19 @@ export function MessagesScreen() {
           }}
           disabled={composer.sending}
         />
-      </View>
-    </SafeAreaView>
+        </View>
+      </SafeAreaView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
+  gradient: {
+    flex: 1,
+  },
   safeArea: {
     flex: 1,
-    backgroundColor: theme.palette.midnight,
+    backgroundColor: 'transparent',
     padding: theme.spacing.md,
     gap: theme.spacing.md,
   },
@@ -366,18 +372,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: theme.spacing.sm,
     alignItems: 'flex-end',
+    backgroundColor: theme.colors.surfaceAlt,
+    borderRadius: theme.radii.md,
+    padding: theme.spacing.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   input: {
     flex: 1,
     minHeight: 48,
     maxHeight: 120,
-    borderRadius: theme.radius.md,
-    borderWidth: 1,
-    borderColor: theme.palette.graphite,
+    borderRadius: theme.radii.md,
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.sm,
-    color: theme.palette.platinum,
-    backgroundColor: theme.palette.obsidian,
+    color: theme.text.primary,
+    backgroundColor: theme.colors.surface,
     ...theme.typography.body,
   },
 });

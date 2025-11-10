@@ -1,7 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import {
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 
 import { useAuthStore } from '@store/authStore';
+import { theme } from '@theme';
 
 const initialFormState = {
   first_name: '',
@@ -68,54 +78,69 @@ export function PersonalMapScreen() {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <View style={styles.card}>
-        <Text style={styles.title}>Personal Map</Text>
-        <Text style={styles.subtitle}>Tell us more so we can personalize your experience.</Text>
-        <Input
-          label="First name"
-          value={form.first_name}
-          onChangeText={(text) => handleChange('first_name', text)}
-          required
-        />
-        <Input
-          label="Last name"
-          value={form.last_name}
-          onChangeText={(text) => handleChange('last_name', text)}
-          required
-        />
-        <Input
-          label="Birth date (YYYY-MM-DD)"
-          value={form.birth_date}
-          onChangeText={(text) => handleChange('birth_date', text)}
-          required
-        />
-        <Input
-          label="Birth time (HH:MM)"
-          value={form.birth_time ?? ''}
-          onChangeText={(text) => handleChange('birth_time', text)}
-        />
-        <Input
-          label="Birth country"
-          value={form.birth_place_country}
-          onChangeText={(text) => handleChange('birth_place_country', text)}
-          required
-        />
-        <Input
-          label="Birth city"
-          value={form.birth_place_city}
-          onChangeText={(text) => handleChange('birth_place_city', text)}
-          required
-        />
-        <TouchableOpacity
-          style={[styles.button, (!isValid || submitting) && styles.buttonDisabled]}
-          onPress={handleSubmit}
-          disabled={!isValid || submitting}
-        >
-          <Text style={styles.buttonLabel}>{submitting ? 'Saving…' : 'Save and continue'}</Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+    <LinearGradient colors={theme.gradients.appBackground} style={styles.gradient}>
+      <ScrollView contentContainerStyle={styles.container}>
+        <View style={styles.card}>
+          <LinearGradient colors={theme.gradients.matrix} style={styles.cardBadge} />
+          <Text style={styles.title}>Personal Map</Text>
+          <Text style={styles.subtitle}>
+            Tell us more so we can align your astro-matrix intelligence.
+          </Text>
+          <Input
+            label="First name"
+            value={form.first_name}
+            onChangeText={(text) => handleChange('first_name', text)}
+            required
+          />
+          <Input
+            label="Last name"
+            value={form.last_name}
+            onChangeText={(text) => handleChange('last_name', text)}
+            required
+          />
+          <Input
+            label="Birth date (YYYY-MM-DD)"
+            value={form.birth_date}
+            onChangeText={(text) => handleChange('birth_date', text)}
+            required
+          />
+          <Input
+            label="Birth time (HH:MM)"
+            value={form.birth_time ?? ''}
+            onChangeText={(text) => handleChange('birth_time', text)}
+          />
+          <Input
+            label="Birth country"
+            value={form.birth_place_country}
+            onChangeText={(text) => handleChange('birth_place_country', text)}
+            required
+          />
+          <Input
+            label="Birth city"
+            value={form.birth_place_city}
+            onChangeText={(text) => handleChange('birth_place_city', text)}
+            required
+          />
+          <TouchableOpacity
+            style={[styles.button, (!isValid || submitting) && styles.buttonDisabled]}
+            onPress={handleSubmit}
+            disabled={!isValid || submitting}
+            activeOpacity={0.9}
+          >
+            <LinearGradient
+              colors={theme.gradients.cta}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.buttonGradient}
+            >
+              <Text style={styles.buttonLabel}>
+                {submitting ? 'Saving…' : 'Save and continue'}
+              </Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </LinearGradient>
   );
 }
 
@@ -145,53 +170,69 @@ function Input({ label, value, onChangeText, required }: InputProps) {
 }
 
 const styles = StyleSheet.create({
+  gradient: { flex: 1 },
   container: {
     flexGrow: 1,
-    padding: 24,
-    backgroundColor: '#020617',
+    padding: theme.spacing.xl,
   },
   card: {
-    backgroundColor: '#0F172A',
-    borderRadius: 24,
-    padding: 24,
-    gap: 16,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.radii.lg,
+    padding: theme.spacing.xl,
+    gap: theme.spacing.lg,
+    ...theme.shadows.card,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  cardBadge: {
+    position: 'absolute',
+    right: -40,
+    top: -40,
+    width: 140,
+    height: 140,
+    opacity: 0.2,
+    borderRadius: 80,
   },
   title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#F9FAFB',
+    color: theme.text.primary,
+    ...theme.typography.headingL,
   },
   subtitle: {
-    color: '#94A3B8',
+    color: theme.text.secondary,
+    ...theme.typography.body,
   },
   inputGroup: {
-    gap: 6,
+    gap: theme.spacing.xs,
   },
   inputLabel: {
-    color: '#E2E8F0',
-    fontWeight: '500',
+    color: theme.text.secondary,
+    ...theme.typography.caption,
   },
   required: {
-    color: '#F87171',
+    color: theme.colors.error,
   },
   input: {
-    backgroundColor: '#1E293B',
-    borderRadius: 12,
-    padding: 14,
-    color: '#F8FAFC',
+    backgroundColor: theme.colors.surfaceAlt,
+    borderRadius: theme.radii.md,
+    padding: theme.spacing.lg,
+    color: theme.text.primary,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   button: {
-    backgroundColor: '#22D3EE',
-    paddingVertical: 16,
-    borderRadius: 12,
+    borderRadius: theme.radii.lg,
+    ...theme.shadows.button,
+  },
+  buttonGradient: {
+    borderRadius: theme.radii.lg,
+    paddingVertical: theme.spacing.md,
     alignItems: 'center',
   },
   buttonDisabled: {
     opacity: 0.6,
   },
   buttonLabel: {
-    fontWeight: '600',
-    fontSize: 16,
-    color: '#0F172A',
+    color: theme.text.primary,
+    ...theme.typography.button,
   },
 });

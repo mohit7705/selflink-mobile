@@ -1,10 +1,20 @@
 import { useCallback, useEffect, useState } from 'react';
-import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
+import {
+  FlatList,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { getFeed, likePost, unlikePost } from '@api/social';
 import { FeedPostCard } from '@components/FeedPostCard';
 import { ErrorState } from '@components/ErrorState';
 import { LoadingOverlay } from '@components/LoadingOverlay';
+import { theme } from '@theme';
 import { Post, TimelineEntry } from '@schemas/social';
 
 export function FeedScreen() {
@@ -80,31 +90,78 @@ export function FeedScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <FlatList
-        data={timeline}
-        keyExtractor={(item) => String(item.id)}
-        contentContainerStyle={styles.listContent}
-        ItemSeparatorComponent={() => <View style={styles.separator} />}
-        renderItem={({ item }) => (
-          <FeedPostCard post={item.post} onLikePress={handleLikeToggle} />
-        )}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
-      />
-    </View>
+    <LinearGradient colors={theme.gradients.appBackground} style={styles.gradient}>
+      <SafeAreaView style={styles.container}>
+        <FlatList
+          data={timeline}
+          keyExtractor={(item) => String(item.id)}
+          contentContainerStyle={styles.listContent}
+          ItemSeparatorComponent={() => <View style={styles.separator} />}
+          ListHeaderComponent={
+            <View style={styles.header}>
+              <Text style={styles.headerTitle}>SelfLink Feed</Text>
+              <Text style={styles.headerSubtitle}>
+                Cosmic threads, mentor updates, and constellation moments from your network.
+              </Text>
+            </View>
+          }
+          renderItem={({ item }) => (
+            <FeedPostCard post={item.post} onLikePress={handleLikeToggle} />
+          )}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
+        />
+        <TouchableOpacity style={styles.fab} activeOpacity={0.9}>
+          <LinearGradient colors={theme.gradients.cta} style={styles.fabInner}>
+            <Text style={styles.fabLabel}>New Post</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      </SafeAreaView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
+  gradient: {
+    flex: 1,
+  },
   container: {
     flex: 1,
-    backgroundColor: '#020617',
+  },
+  header: {
+    paddingBottom: theme.spacing.lg,
+  },
+  headerTitle: {
+    color: theme.text.primary,
+    ...theme.typography.headingL,
+  },
+  headerSubtitle: {
+    color: theme.text.secondary,
+    marginTop: theme.spacing.sm,
+    ...theme.typography.body,
   },
   listContent: {
-    padding: 16,
-    gap: 16,
+    padding: theme.spacing.xl,
+    gap: theme.spacing.lg,
   },
   separator: {
-    height: 16,
+    height: theme.spacing.lg,
+  },
+  fab: {
+    position: 'absolute',
+    right: theme.spacing.xl,
+    bottom: theme.spacing.xl,
+    borderRadius: theme.radii.pill,
+    ...theme.shadows.button,
+  },
+  fabInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: theme.spacing.xl,
+    paddingVertical: theme.spacing.md,
+    borderRadius: theme.radii.pill,
+  },
+  fabLabel: {
+    color: theme.text.primary,
+    ...theme.typography.button,
   },
 });

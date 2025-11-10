@@ -1,8 +1,10 @@
 import { useCallback } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 
 import { UserAvatar } from '@components/UserAvatar';
 import { useAuthStore } from '@store/authStore';
+import { theme } from '@theme';
 
 export function ProfileScreen() {
   const currentUser = useAuthStore((state) => state.currentUser);
@@ -23,33 +25,35 @@ export function ProfileScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <View style={styles.card}>
-        <UserAvatar uri={currentUser.photo} label={currentUser.name} size={72} />
-        <Text style={styles.name}>{currentUser.name}</Text>
-        <Text style={styles.handle}>@{currentUser.handle}</Text>
-        <Text style={styles.meta}>{currentUser.email}</Text>
-        {currentUser.birth_place ? <Text style={styles.meta}>{currentUser.birth_place}</Text> : null}
-        <Text style={styles.sectionTitle}>Personal map</Text>
-        {hasCompletedPersonalMap && personalMap ? (
-          <View style={styles.mapGrid}>
-            <InfoRow label="First name" value={personalMap.first_name} />
-            <InfoRow label="Last name" value={personalMap.last_name} />
-            <InfoRow label="Birth date" value={personalMap.birth_date ?? 'N/A'} />
-            <InfoRow label="Birth time" value={personalMap.birth_time ?? 'N/A'} />
-            <InfoRow label="Birth city" value={personalMap.birth_place_city} />
-            <InfoRow label="Country" value={personalMap.birth_place_country} />
-          </View>
-        ) : (
-          <Text style={styles.meta}>
-            Complete your personal map to unlock mentor, matrix, and soul match insights.
-          </Text>
-        )}
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Text style={styles.logoutLabel}>Sign out</Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+    <LinearGradient colors={theme.gradients.appBackground} style={{ flex: 1 }}>
+      <ScrollView contentContainerStyle={styles.container}>
+        <LinearGradient colors={theme.gradients.card} style={styles.card}>
+          <UserAvatar uri={currentUser.photo} label={currentUser.name} size={80} />
+          <Text style={styles.name}>{currentUser.name}</Text>
+          <Text style={styles.handle}>@{currentUser.handle}</Text>
+          <Text style={styles.meta}>{currentUser.email}</Text>
+          {currentUser.birth_place ? <Text style={styles.meta}>{currentUser.birth_place}</Text> : null}
+          <Text style={styles.sectionTitle}>Personal map</Text>
+          {hasCompletedPersonalMap && personalMap ? (
+            <View style={styles.mapGrid}>
+              <InfoRow label="First name" value={personalMap.first_name} />
+              <InfoRow label="Last name" value={personalMap.last_name} />
+              <InfoRow label="Birth date" value={personalMap.birth_date ?? 'N/A'} />
+              <InfoRow label="Birth time" value={personalMap.birth_time ?? 'N/A'} />
+              <InfoRow label="Birth city" value={personalMap.birth_place_city} />
+              <InfoRow label="Country" value={personalMap.birth_place_country} />
+            </View>
+          ) : (
+            <Text style={styles.meta}>
+              Complete your personal map to unlock mentor, matrix, and soul match insights.
+            </Text>
+          )}
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.9}>
+            <Text style={styles.logoutLabel}>Sign out</Text>
+          </TouchableOpacity>
+        </LinearGradient>
+      </ScrollView>
+    </LinearGradient>
   );
 }
 
@@ -69,70 +73,69 @@ function InfoRow({ label, value }: InfoRowProps) {
 
 const styles = StyleSheet.create({
   container: {
-    padding: 24,
-    backgroundColor: '#020617',
+    padding: theme.spacing.xl,
+    gap: theme.spacing.lg,
   },
   card: {
-    backgroundColor: '#0F172A',
-    borderRadius: 24,
-    padding: 24,
+    borderRadius: theme.radii.lg,
+    padding: theme.spacing.xl,
     alignItems: 'center',
-    gap: 12,
+    gap: theme.spacing.md,
+    ...theme.shadows.card,
   },
   name: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#F9FAFB',
+    ...theme.typography.headingL,
+    color: theme.text.primary,
   },
   handle: {
-    color: '#94A3B8',
+    color: theme.text.secondary,
   },
   meta: {
-    color: '#94A3B8',
+    color: theme.text.secondary,
     textAlign: 'center',
   },
   sectionTitle: {
     alignSelf: 'flex-start',
-    marginTop: 12,
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#F9FAFB',
+    marginTop: theme.spacing.lg,
+    color: theme.text.primary,
+    ...theme.typography.headingM,
   },
   mapGrid: {
     alignSelf: 'stretch',
-    gap: 8,
+    gap: theme.spacing.sm,
   },
   infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
   infoLabel: {
-    color: '#94A3B8',
+    color: theme.text.muted,
   },
   infoValue: {
-    color: '#E5E7EB',
+    color: theme.text.primary,
     fontWeight: '600',
   },
   logoutButton: {
-    marginTop: 24,
+    marginTop: theme.spacing.xl,
     alignSelf: 'stretch',
     borderWidth: 1,
-    borderColor: '#EF4444',
-    borderRadius: 12,
-    paddingVertical: 12,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radii.md,
+    paddingVertical: theme.spacing.md,
     alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.04)',
   },
   logoutLabel: {
-    color: '#EF4444',
-    fontWeight: '600',
+    color: theme.colors.error,
+    ...theme.typography.button,
   },
   emptyState: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#020617',
+    backgroundColor: theme.colors.background,
   },
   emptyStateText: {
-    color: '#94A3B8',
+    color: theme.text.secondary,
   },
 });
