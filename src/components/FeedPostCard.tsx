@@ -1,92 +1,155 @@
-import { memo } from 'react';
+import { memo, useCallback, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { useNavigation } from '@react-navigation/native';
 
-import { Post } from '@schemas/social';
-import { theme } from '@theme';
+import { followUser, unfollowUser } from '@api/users';
+import { useFeedStore } from '@store/feedStore';
+import { useAuthStore } from '@store/authStore';
+import type { Post } from '@schemas/social';
 
 import { UserAvatar } from './UserAvatar';
 
-type Props = {
+interface Props {
   post: Post;
-  onPress?: (post: Post) => void;
-  onLikePress?: (post: Post) => void;
-};
+}
 
-function Component({ post, onPress, onLikePress }: Props) {
+function FeedPostCardComponent({ post }: Props) {
+  const navigation = useNavigation<any>();
+  const currentUserId = useAuthStore((state) => state.currentUser?.id);
+  const likePost = useFeedStore((state) => state.likePost);
+  const unlikePost = useFeedStore((state) => state.unlikePost);
+  const [followPending, setFollowPending] = useState(false);
+  const [isFollowing, setIsFollowing] = useState(() => {
+    const flags = post.author.flags as Record<string, unknown> | undefined;
+    if (!flags) {
+      return false;
+    }
+    return Boolean(flags.following || flags.is_following);
+  });
+
+  const handleLikeToggle = useCallback(() => {
+    if (post.liked) {
+      unlikePost(post.id).catch(() => undefined);
+    } else {
+      likePost(post.id).catch(() => undefined);
+    }
+  }, [likePost, unlikePost, post.id, post.liked]);
+
+  const handleFollowToggle = useCallback(async () => {
+    if (followPending || post.author.id === currentUserId) {
+      return;
+    }
+    setFollowPending(true);
+    try {
+      if (isFollowing) {
+        await unfollowUser(post.author.id);
+        setIsFollowing(false);
+      } else {
+        await followUser(post.author.id);
+        setIsFollowing(true);
+      }
+    } catch (error) {
+      console.warn('FeedPostCard: follow toggle failed', error);
+    } finally {
+      setFollowPending(false);
+    }
+  }, [currentUserId, isFollowing, post.author.id, followPending]);
+
+  const handleOpenDetails = useCallback(() => {
+    navigation.navigate('PostDetails', { postId: post.id, post });
+  }, [navigation, post]);
+
   return (
-    <TouchableOpacity activeOpacity={0.92} onPress={() => onPress?.(post)}>
-      <LinearGradient colors={theme.gradients.card} style={styles.card}>
-        <View style={styles.header}>
-          <UserAvatar uri={post.author.photo} label={post.author.name} size={42} />
-          <View style={styles.meta}>
-            <Text style={styles.author}>{post.author.name}</Text>
-            <Text style={styles.handle}>@{post.author.handle}</Text>
-          </View>
-          <Text style={styles.timestamp}>{new Date(post.created_at).toLocaleDateString()}</Text>
+    <View style={styles.card}>
+      <View style={styles.header}>
+        <UserAvatar uri={post.author.photo} label={post.author.name} size={40} />
+        <View style={styles.meta}>
+          <Text style={styles.author}>{post.author.name}</Text>
+          <Text style={styles.handle}>@{post.author.handle}</Text>
+          <Text style={styles.timestamp}>{new Date(post.created_at).toLocaleString()}</Text>
         </View>
-        <Text style={styles.content}>{post.text}</Text>
-        <View style={styles.footer}>
-          <Text style={styles.stat}>{post.like_count} likes</Text>
-          <Text style={styles.stat}>{post.comment_count} comments</Text>
-          <TouchableOpacity onPress={() => onLikePress?.(post)}>
-            <Text style={[styles.likeButton, post.liked && styles.likeButtonActive]}>
-              {post.liked ? 'Unlike' : 'Like'}
+        {post.author.id !== currentUserId && (
+          <TouchableOpacity
+            style={styles.followButton}
+            onPress={handleFollowToggle}
+            disabled={followPending}
+          >
+            <Text style={styles.followButtonText}>
+              {followPending ? '…' : isFollowing ? 'Following' : 'Follow'}
             </Text>
           </TouchableOpacity>
-        </View>
-      </LinearGradient>
-    </TouchableOpacity>
+        )}
+      </View>
+
+      <TouchableOpacity onPress={handleOpenDetails} activeOpacity={0.7}>
+        <Text style={styles.content}>{post.text}</Text>
+      </TouchableOpacity>
+
+      <View style={styles.footer}>
+        <TouchableOpacity onPress={handleLikeToggle} accessibilityRole="button">
+          <Text style={styles.actionText}>
+            {post.liked ? 'Unlike' : 'Like'} • {post.like_count}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={handleOpenDetails} accessibilityRole="button">
+          <Text style={styles.actionText}>Comments • {post.comment_count}</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 }
 
-export const FeedPostCard = memo(Component);
+export const FeedPostCard = memo(FeedPostCardComponent);
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: theme.radii.lg,
-    padding: theme.spacing.lg,
-    gap: theme.spacing.md,
-    ...theme.shadows.card,
+    backgroundColor: '#101828',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.md,
+    gap: 12,
   },
   meta: {
     flex: 1,
   },
   author: {
-    color: theme.text.primary,
     fontWeight: '600',
+    color: '#F8FAFC',
   },
   handle: {
-    color: theme.text.muted,
+    color: '#94A3B8',
     fontSize: 12,
   },
   timestamp: {
-    color: theme.text.muted,
-    fontSize: 11,
-  },
-  content: {
-    color: theme.text.primary,
-    fontSize: 16,
-  },
-  footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  stat: {
-    color: theme.text.secondary,
+    color: '#94A3B8',
     fontSize: 12,
   },
-  likeButton: {
-    color: theme.text.secondary,
-    fontWeight: '600',
+  followButton: {
+    borderWidth: 1,
+    borderColor: '#475569',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+    alignSelf: 'center',
   },
-  likeButtonActive: {
-    color: theme.colors.secondary,
+  followButtonText: {
+    color: '#E2E8F0',
+    fontSize: 12,
+  },
+  content: {
+    marginTop: 12,
+    color: '#E2E8F0',
+  },
+  footer: {
+    marginTop: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  actionText: {
+    color: '#60A5FA',
+    fontWeight: '500',
   },
 });

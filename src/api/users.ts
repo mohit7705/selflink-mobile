@@ -7,9 +7,13 @@ export async function listUsers(query?: string): Promise<User[]> {
   return data;
 }
 
-export async function getUserById(id: number): Promise<User> {
+export async function getUserProfile(id: number | string): Promise<User> {
   const { data } = await apiClient.get<User>(`/users/${id}/`);
   return data;
+}
+
+export async function getUserById(id: number): Promise<User> {
+  return getUserProfile(id);
 }
 
 export async function getCurrentUser(): Promise<User> {
@@ -59,14 +63,12 @@ export async function savePersonalMapProfile(payload: PersonalMapPayload): Promi
   return data;
 }
 
-export async function followUser(userId: number): Promise<{ following: boolean }> {
-  const { data } = await apiClient.post<{ following: boolean }>(`/users/${userId}/follow/`);
-  return data;
+export async function followUser(userId: number | string): Promise<void> {
+  await apiClient.post(`/users/${userId}/follow/`, {});
 }
 
-export async function unfollowUser(userId: number): Promise<{ following: boolean }> {
-  const { data } = await apiClient.delete<{ following: boolean }>(`/users/${userId}/follow/`);
-  return data;
+export async function unfollowUser(userId: number | string): Promise<void> {
+  await apiClient.delete(`/users/${userId}/follow/`);
 }
 
 export async function listFollowers(userId: number): Promise<User[]> {

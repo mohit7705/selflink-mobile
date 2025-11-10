@@ -1,49 +1,106 @@
 import { apiClient } from './client';
-import { Comment, CommentInput, FeedQuery, Post, PostInput, TimelineEntry } from '@schemas/social';
+import type { Comment, Post, TimelineEntry } from '@schemas/social';
 
-function buildQuery(path: string, params?: Record<string, string | undefined>) {
-  const query = Object.entries(params ?? {})
-    .filter(([, value]) => value !== undefined && value !== null && value !== '')
-    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value ?? '')}`)
-    .join('&');
+type QueryParams = Record<string, string | number | undefined>;
+
+const FEED_ENDPOINT = '/feed/home/';
+
+const buildQuery = (path: string, params?: QueryParams) => {
+  if (!params) {
+    return path;
+  }
+  const search = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === undefined || value === null) {
+      return;
+    }
+    search.append(key, String(value));
+  });
+  const query = search.toString();
   return query ? `${path}?${query}` : path;
+};
+
+export interface FeedResponse {
+  results: TimelineEntry[];
+  nextCursor: string | null;
 }
 
-export async function getFeed(query?: FeedQuery): Promise<TimelineEntry[]> {
-  const url = buildQuery('/feed/home/', {
-    since: query?.since,
+export async function getFeed(params?: { page?: number; cursor?: string }): Promise<FeedResponse> {
+  const url = buildQuery(FEED_ENDPOINT, {
+    page: params?.page,
+    cursor: params?.cursor,
   });
   const { data } = await apiClient.get<TimelineEntry[]>(url);
-  return data;
+  const lastEntry = data[data.length - 1];
+  return {
+    results: data,
+    nextCursor: lastEntry?.created_at ?? null,
+  };
 }
 
-export async function getPost(postId: number): Promise<Post> {
+export async function getPost(postId: string | number): Promise<Post> {
   const { data } = await apiClient.get<Post>(`/posts/${postId}/`);
   return data;
 }
 
-export async function createPost(payload: PostInput): Promise<Post> {
-  const { data } = await apiClient.post<Post>('/posts/', payload);
+export interface CreatePostPayload {
+  content: string;
+  imageUris?: string[];
+  visibility?: string;
+  language?: string;
+}
+
+export async function createPost(payload: CreatePostPayload): Promise<Post> {
+  if (payload.imageUris && payload.imageUris.length > 0) {
+    const formData = new FormData();
+    formData.append('text', payload.content);
+    if (payload.visibility) {
+      formData.append('visibility', payload.visibility);
+    }
+    if (payload.language) {
+      formData.append('language', payload.language);
+    }
+    payload.imageUris.forEach((uri, index) => {
+      formData.append('images', {
+        uri,
+        name: `upload-${index}.jpg`,
+        type: 'image/jpeg',
+      } as unknown as Blob);
+    });
+    const { data } = await apiClient.post<Post>('/posts/', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return data;
+  }
+  const { data } = await apiClient.post<Post>('/posts/', {
+    text: payload.content,
+    visibility: payload.visibility,
+    language: payload.language,
+  });
   return data;
 }
 
-export async function likePost(postId: number): Promise<{ liked: boolean }> {
-  const { data } = await apiClient.post<{ liked: boolean }>(`/posts/${postId}/like/`);
+export async function likePost(postId: string | number): Promise<void> {
+  await apiClient.post(`/posts/${postId}/like/`, {});
+}
+
+export async function unlikePost(postId: string | number): Promise<void> {
+  await apiClient.post(`/posts/${postId}/unlike/`, {});
+}
+
+export async function addComment(postId: string | number, text: string): Promise<Comment> {
+  const { data } = await apiClient.post<Comment>('/comments/', {
+    post: postId,
+    text,
+  });
   return data;
 }
 
-export async function unlikePost(postId: number): Promise<{ liked: boolean }> {
-  const { data } = await apiClient.post<{ liked: boolean }>(`/posts/${postId}/unlike/`);
-  return data;
-}
-
-export async function getComments(postId: number): Promise<Comment[]> {
-  const url = buildQuery('/comments/', { post: String(postId) });
+export async function getPostComments(postId: string | number, page?: number): Promise<Comment[]> {
+  const url = buildQuery('/comments/', {
+    post: String(postId),
+    page,
+  });
   const { data } = await apiClient.get<Comment[]>(url);
-  return data;
-}
-
-export async function addComment(payload: CommentInput): Promise<Comment> {
-  const { data } = await apiClient.post<Comment>('/comments/', payload);
   return data;
 }

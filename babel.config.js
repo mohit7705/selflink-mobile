@@ -11,6 +11,7 @@ module.exports = function (api) {
           '@screens': './src/screens',
           '@theme': './src/theme.ts',
           '@navigation': './src/navigation',
+          '@lib': './src/lib',
           '@utils': './src/utils',
           '@hooks': './src/hooks',
           '@config': './src/config',

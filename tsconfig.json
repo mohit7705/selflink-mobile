@@ -12,6 +12,7 @@
       "@theme": ["src/theme"],
       "@theme/*": ["src/theme/*"],
       "@navigation/*": ["src/navigation/*"],
+      "@lib/*": ["src/lib/*"],
       "@utils/*": ["src/utils/*"],
       "@hooks/*": ["src/hooks/*"],
       "@config/*": ["src/config/*"],
