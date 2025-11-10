@@ -21,12 +21,10 @@ export function LoginScreen() {
   const navigation = useNavigation<Navigation>();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const { login, isAuthenticating, error, setError } = useAuthStore((state) => ({
-    login: state.login,
-    isAuthenticating: state.isAuthenticating,
-    error: state.error,
-    setError: state.setError,
-  }));
+  const login = useAuthStore((state) => state.login);
+  const isAuthenticating = useAuthStore((state) => state.isAuthenticating);
+  const error = useAuthStore((state) => state.error);
+  const setError = useAuthStore((state) => state.setError);
 
   const handleSubmit = useCallback(async () => {
     if (!email || !password) {

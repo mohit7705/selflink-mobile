@@ -1,6 +1,6 @@
 import { apiClient } from './client';
-import { CreateThreadPayload, Message, SendMessagePayload, Thread } from '@types/messaging';
-import { User } from '@types/user';
+import { CreateThreadPayload, Message, SendMessagePayload, Thread } from '@schemas/messaging';
+import { User } from '@schemas/user';
 
 export async function getThreads(): Promise<Thread[]> {
   const { data } = await apiClient.get<Thread[]>('/threads/');

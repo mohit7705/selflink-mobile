@@ -1,5 +1,5 @@
 import { apiClient } from './client';
-import { PersonalMapInput, PersonalMapProfile, ProfileUpdateInput, User } from '@types/user';
+import { PersonalMapInput, PersonalMapProfile, ProfileUpdateInput, User } from '@schemas/user';
 
 export async function listUsers(query?: string): Promise<User[]> {
   const url = query ? `/users/?q=${encodeURIComponent(query)}` : '/users/';

@@ -23,12 +23,10 @@ export function RegisterScreen() {
   const [handle, setHandle] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const { register, isAuthenticating, error, setError } = useAuthStore((state) => ({
-    register: state.register,
-    isAuthenticating: state.isAuthenticating,
-    error: state.error,
-    setError: state.setError,
-  }));
+  const register = useAuthStore((state) => state.register);
+  const isAuthenticating = useAuthStore((state) => state.isAuthenticating);
+  const error = useAuthStore((state) => state.error);
+  const setError = useAuthStore((state) => state.setError);
 
   const handleSubmit = useCallback(async () => {
     if (!name || !email || !password) {

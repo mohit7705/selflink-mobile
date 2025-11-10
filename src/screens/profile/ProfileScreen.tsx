@@ -5,12 +5,10 @@ import { UserAvatar } from '@components/UserAvatar';
 import { useAuthStore } from '@store/authStore';
 
 export function ProfileScreen() {
-  const { currentUser, personalMap, hasCompletedPersonalMap, logout } = useAuthStore((state) => ({
-    currentUser: state.currentUser,
-    personalMap: state.personalMap,
-    hasCompletedPersonalMap: state.hasCompletedPersonalMap,
-    logout: state.logout,
-  }));
+  const currentUser = useAuthStore((state) => state.currentUser);
+  const personalMap = useAuthStore((state) => state.personalMap);
+  const hasCompletedPersonalMap = useAuthStore((state) => state.hasCompletedPersonalMap);
+  const logout = useAuthStore((state) => state.logout);
 
   const handleLogout = useCallback(async () => {
     await logout();

@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-import { Post } from '@types/social';
+import { Post } from '@schemas/social';
 
 import { UserAvatar } from './UserAvatar';
 

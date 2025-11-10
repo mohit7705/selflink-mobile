@@ -1,5 +1,5 @@
 import { apiClient } from './client';
-import { Comment, CommentInput, FeedQuery, Post, PostInput, TimelineEntry } from '@types/social';
+import { Comment, CommentInput, FeedQuery, Post, PostInput, TimelineEntry } from '@schemas/social';
 
 function buildQuery(path: string, params?: Record<string, string | undefined>) {
   const query = Object.entries(params ?? {})

@@ -5,7 +5,7 @@ import { getFeed, likePost, unlikePost } from '@api/social';
 import { FeedPostCard } from '@components/FeedPostCard';
 import { ErrorState } from '@components/ErrorState';
 import { LoadingOverlay } from '@components/LoadingOverlay';
-import { Post, TimelineEntry } from '@types/social';
+import { Post, TimelineEntry } from '@schemas/social';
 
 export function FeedScreen() {
   const [timeline, setTimeline] = useState<TimelineEntry[]>([]);

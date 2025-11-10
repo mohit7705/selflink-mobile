@@ -15,10 +15,8 @@ const initialFormState = {
 type FormState = typeof initialFormState;
 
 export function PersonalMapScreen() {
-  const { personalMap, savePersonalMap } = useAuthStore((state) => ({
-    personalMap: state.personalMap,
-    savePersonalMap: state.savePersonalMap,
-  }));
+  const personalMap = useAuthStore((state) => state.personalMap);
+  const savePersonalMap = useAuthStore((state) => state.savePersonalMap);
   const [form, setForm] = useState<FormState>(initialFormState);
   const [submitting, setSubmitting] = useState(false);
 

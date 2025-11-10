@@ -7,6 +7,7 @@ import { MainTabsNavigator } from './MainTabsNavigator';
 import type { OnboardingStackParamList, RootStackParamList } from './types';
 import { PersonalMapScreen } from '@screens/onboarding/PersonalMapScreen';
 import { useAuthStore } from '@store/authStore';
+import { useAuthHydration } from '@hooks/useAuthHydration';
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 const OnboardingStack = createNativeStackNavigator<OnboardingStackParamList>();
@@ -34,11 +35,9 @@ function SplashScreen() {
 
 export function RootNavigator() {
   const colorScheme = useColorScheme();
-  const { isHydrated, accessToken, hasCompletedPersonalMap } = useAuthStore((state) => ({
-    isHydrated: state.isHydrated,
-    accessToken: state.accessToken,
-    hasCompletedPersonalMap: state.hasCompletedPersonalMap,
-  }));
+  const isHydrated = useAuthHydration();
+  const accessToken = useAuthStore((state) => state.accessToken);
+  const hasCompletedPersonalMap = useAuthStore((state) => state.hasCompletedPersonalMap);
 
   const isAuthenticated = Boolean(accessToken);
 

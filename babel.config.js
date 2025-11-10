@@ -16,7 +16,7 @@ module.exports = function (api) {
           '@config': './src/config',
           '@services': './src/services',
           '@store': './src/store',
-          '@types': './src/types',
+          '@schemas': './src/types',
           '@context': './src/context',
           'react-native-worklets/plugin': './src/utils/workletsPluginStub',
         },
