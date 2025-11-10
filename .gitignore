@@ -61,3 +61,4 @@ rad.json
 *.flf
 #Test results file
 TestResults.xml
+prompt.txt

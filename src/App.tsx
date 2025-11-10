@@ -2,9 +2,8 @@ import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useColorScheme } from 'react-native';
 
-import { AuthProvider } from '@context/AuthContext';
 import { ToastProvider } from '@context/ToastContext';
-import { AppNavigator } from '@navigation/AppNavigator';
+import { RootNavigator } from '@navigation/RootNavigator';
 import { theme } from '@theme/index';
 
 export default function App() {
@@ -31,10 +30,8 @@ export default function App() {
 
   return (
     <ToastProvider>
-      <AuthProvider>
-        <StatusBar style={statusBarStyle} backgroundColor={theme.palette.midnight} />
-        <AppNavigator />
-      </AuthProvider>
+      <StatusBar style={statusBarStyle} backgroundColor={theme.palette.midnight} />
+      <RootNavigator />
     </ToastProvider>
   );
 }

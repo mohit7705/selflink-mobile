@@ -6,6 +6,7 @@ module.exports = function (api) {
       {
         extensions: ['.tsx', '.ts', '.js', '.json'],
         alias: {
+          '@api': './src/api',
           '@components': './src/components',
           '@screens': './src/screens',
           '@theme': './src/theme',
@@ -14,6 +15,8 @@ module.exports = function (api) {
           '@hooks': './src/hooks',
           '@config': './src/config',
           '@services': './src/services',
+          '@store': './src/store',
+          '@types': './src/types',
           '@context': './src/context',
           'react-native-worklets/plugin': './src/utils/workletsPluginStub',
         },
