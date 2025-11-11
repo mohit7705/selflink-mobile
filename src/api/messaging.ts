@@ -27,6 +27,13 @@ export async function sendMessage(threadId: string | number, text: string): Prom
   });
   return data;
 }
+
+export async function getOrCreateDirectThread(userId: number | string): Promise<Thread> {
+  const { data } = await apiClient.post<Thread>('/threads/direct/', {
+    user_id: userId,
+  }); // TODO: verify endpoint path with backend
+  return data;
+}
 export async function getThread(threadId: string | number): Promise<Thread> {
   const { data } = await apiClient.get<Thread>(`/threads/${threadId}/`);
   return data;

@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 
-import { searchUsers, UserSummary } from '@api/users';
+import { followUser, searchUsers, unfollowUser, UserSummary } from '@api/users';
 
 export function SearchProfilesScreen() {
   const navigation = useNavigation<any>();
@@ -55,13 +55,39 @@ export function SearchProfilesScreen() {
         data={results}
         keyExtractor={(item) => String(item.id)}
         renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.resultRow}
-            onPress={() => navigation.navigate('UserProfile', { userId: item.id })}
-          >
-            <Text style={styles.resultName}>{item.name || item.handle}</Text>
-            <Text style={styles.resultHandle}>@{item.handle}</Text>
-          </TouchableOpacity>
+          <View style={styles.resultRow}>
+            <TouchableOpacity onPress={() => navigation.navigate('UserProfile', { userId: item.id })}>
+              <Text style={styles.resultName}>{item.name || item.handle || item.username}</Text>
+              <Text style={styles.resultHandle}>@{item.handle || item.username}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.followButton}
+              onPress={async () => {
+                const next = !item.is_following;
+                setResults((prev) =>
+                  prev.map((user) =>
+                    user.id === item.id ? { ...user, is_following: next } : user,
+                  ),
+                );
+                try {
+                  if (next) {
+                    await followUser(item.id);
+                  } else {
+                    await unfollowUser(item.id);
+                  }
+                } catch (err) {
+                  console.warn('SearchProfiles: follow toggle failed', err);
+                  setResults((prev) =>
+                    prev.map((user) =>
+                      user.id === item.id ? { ...user, is_following: !next } : user,
+                    ),
+                  );
+                }
+              }}
+            >
+              <Text style={styles.followButtonText}>{item.is_following ? 'Unfollow' : 'Follow'}</Text>
+            </TouchableOpacity>
+          </View>
         )}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         ListEmptyComponent={
@@ -104,12 +130,25 @@ const styles = StyleSheet.create({
   },
   resultRow: {
     paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   resultName: {
     fontWeight: '600',
   },
   resultHandle: {
     color: '#475569',
+  },
+  followButton: {
+    borderWidth: 1,
+    borderColor: '#CBD5F5',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+  },
+  followButtonText: {
+    fontWeight: '600',
   },
   separator: {
     height: 1,

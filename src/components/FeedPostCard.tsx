@@ -20,6 +20,9 @@ function FeedPostCardComponent({ post }: Props) {
   const unlikePost = useFeedStore((state) => state.unlikePost);
   const [followPending, setFollowPending] = useState(false);
   const [isFollowing, setIsFollowing] = useState(() => {
+    if ((post.author as any).is_following !== undefined) {
+      return Boolean((post.author as any).is_following);
+    }
     const flags = post.author.flags as Record<string, unknown> | undefined;
     if (!flags) {
       return false;
@@ -59,15 +62,21 @@ function FeedPostCardComponent({ post }: Props) {
     navigation.navigate('PostDetails', { postId: post.id, post });
   }, [navigation, post]);
 
+  const handleOpenProfile = useCallback(() => {
+    navigation.navigate('UserProfile', { userId: post.author.id });
+  }, [navigation, post.author.id]);
+
   return (
     <View style={styles.card}>
       <View style={styles.header}>
-        <UserAvatar uri={post.author.photo} label={post.author.name} size={40} />
-        <View style={styles.meta}>
+        <TouchableOpacity onPress={handleOpenProfile}>
+          <UserAvatar uri={post.author.photo} label={post.author.name} size={40} />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.meta} onPress={handleOpenProfile}>
           <Text style={styles.author}>{post.author.name}</Text>
           <Text style={styles.handle}>@{post.author.handle}</Text>
           <Text style={styles.timestamp}>{new Date(post.created_at).toLocaleString()}</Text>
-        </View>
+        </TouchableOpacity>
         {post.author.id !== currentUserId && (
           <TouchableOpacity
             style={styles.followButton}

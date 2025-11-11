@@ -10,6 +10,8 @@ import {
 import { useNavigation } from '@react-navigation/native';
 
 import { useMessagingStore } from '@store/messagingStore';
+import { useAuthStore } from '@store/authStore';
+import type { Thread } from '@schemas/messaging';
 
 export function ThreadsScreen() {
   const navigation = useNavigation<any>();
@@ -17,10 +19,43 @@ export function ThreadsScreen() {
   const isLoading = useMessagingStore((state) => state.isLoadingThreads);
   const error = useMessagingStore((state) => state.error);
   const loadThreads = useMessagingStore((state) => state.loadThreads);
+  const currentUserId = useAuthStore((state) => state.currentUser?.id);
 
   useEffect(() => {
     loadThreads().catch(() => undefined);
   }, [loadThreads]);
+
+  const renderThread = (thread: Thread) => {
+    const otherUser =
+      currentUserId != null
+        ? thread.participants?.find((participant) => participant.id !== currentUserId)
+        : undefined;
+    const title = otherUser?.name || otherUser?.handle || thread.title || 'Conversation';
+
+    return (
+      <View>
+        <TouchableOpacity
+          style={styles.thread}
+          onPress={() => navigation.navigate('Chat', { threadId: thread.id, otherUserId: otherUser?.id })}
+        >
+          <Text style={styles.threadTitle}>{title}</Text>
+          {thread.last_message?.body ? (
+            <Text style={styles.threadPreview}>{thread.last_message.body}</Text>
+          ) : (
+            <Text style={styles.threadPreview}>No messages yet.</Text>
+          )}
+        </TouchableOpacity>
+        {otherUser ? (
+          <TouchableOpacity
+            style={styles.profileLink}
+            onPress={() => navigation.navigate('UserProfile', { userId: otherUser.id })}
+          >
+            <Text style={styles.profileLinkText}>View profile</Text>
+          </TouchableOpacity>
+        ) : null}
+      </View>
+    );
+  };
 
   if (isLoading && threads.length === 0) {
     return (
@@ -42,19 +77,7 @@ export function ThreadsScreen() {
     <FlatList
       data={threads}
       keyExtractor={(item) => String(item.id)}
-      renderItem={({ item }) => (
-        <TouchableOpacity
-          style={styles.thread}
-          onPress={() => navigation.navigate('Chat', { threadId: item.id })}
-        >
-          <Text style={styles.threadTitle}>{item.title || 'Direct message'}</Text>
-          {item.last_message?.body ? (
-            <Text style={styles.threadPreview}>{item.last_message.body}</Text>
-          ) : (
-            <Text style={styles.threadPreview}>No messages yet.</Text>
-          )}
-        </TouchableOpacity>
-      )}
+      renderItem={({ item }) => renderThread(item)}
       ItemSeparatorComponent={() => <View style={styles.separator} />}
       contentContainerStyle={styles.listContent}
     />
@@ -62,27 +85,16 @@ export function ThreadsScreen() {
 }
 
 const styles = StyleSheet.create({
-  listContent: {
-    padding: 16,
+  listContent: { padding: 16 },
+  thread: { paddingVertical: 12 },
+  threadTitle: { fontWeight: '600', marginBottom: 4 },
+  threadPreview: { color: '#475569' },
+  profileLink: {
+    alignSelf: 'flex-start',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
   },
-  thread: {
-    paddingVertical: 12,
-  },
-  threadTitle: {
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  threadPreview: {
-    color: '#475569',
-  },
-  separator: {
-    height: 1,
-    backgroundColor: '#E2E8F0',
-  },
-  centered: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-  },
+  profileLinkText: { color: '#2563EB' },
+  separator: { height: 1, backgroundColor: '#E2E8F0' },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
 });

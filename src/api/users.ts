@@ -1,19 +1,50 @@
 import { apiClient } from './client';
 import { PersonalMapInput, PersonalMapProfile, ProfileUpdateInput, User } from '@schemas/user';
 
+export interface UserSummary {
+  id: number;
+  handle?: string;
+  username?: string;
+  name?: string;
+  first_name?: string;
+  last_name?: string;
+  photo?: string;
+  avatar_url?: string;
+  bio?: string;
+  is_following?: boolean;
+  followers_count?: number;
+  following_count?: number;
+}
+
 export async function listUsers(query?: string): Promise<User[]> {
   const url = query ? `/users/?q=${encodeURIComponent(query)}` : '/users/';
   const { data } = await apiClient.get<User[]>(url);
   return data;
 }
 
-export async function getUserProfile(id: number | string): Promise<User> {
+const mapUser = (user: User | UserSummary): UserSummary => ({
+  id: user.id,
+  handle: (user as User).handle ?? user.username,
+  username: user.username ?? (user as User).handle,
+  name: user.name,
+  first_name: user.first_name,
+  last_name: user.last_name,
+  photo: (user as User).photo ?? user.avatar_url,
+  avatar_url: user.avatar_url ?? (user as User).photo,
+  bio: (user as User).bio,
+  is_following: (user as any).is_following,
+  followers_count: (user as any).followers_count,
+  following_count: (user as any).following_count,
+});
+
+export async function getUserProfile(id: number | string): Promise<UserSummary> {
   const { data } = await apiClient.get<User>(`/users/${id}/`);
-  return data;
+  return mapUser(data);
 }
 
 export async function getUserById(id: number): Promise<User> {
-  return getUserProfile(id);
+  const { data } = await apiClient.get<User>(`/users/${id}/`);
+  return data;
 }
 
 export async function getCurrentUser(): Promise<User> {
@@ -71,21 +102,14 @@ export async function unfollowUser(userId: number | string): Promise<void> {
   await apiClient.delete(`/users/${userId}/follow/`);
 }
 
-export async function listFollowers(userId: number): Promise<User[]> {
+export async function getUserFollowers(userId: number | string): Promise<UserSummary[]> {
   const { data } = await apiClient.get<User[]>(`/users/${userId}/followers/`);
-  return data;
+  return data.map(mapUser);
 }
 
-export async function listFollowing(userId: number): Promise<User[]> {
+export async function getUserFollowing(userId: number | string): Promise<UserSummary[]> {
   const { data } = await apiClient.get<User[]>(`/users/${userId}/following/`);
-  return data;
-}
-
-export interface UserSummary {
-  id: number;
-  handle: string;
-  name: string;
-  photo: string;
+  return data.map(mapUser);
 }
 
 export async function searchUsers(query: string): Promise<UserSummary[]> {
@@ -94,5 +118,5 @@ export async function searchUsers(query: string): Promise<UserSummary[]> {
   }
   // Endpoint powered by apps/search/urls.py -> /search/users/
   const { data } = await apiClient.get<UserSummary[]>(`/search/users/?q=${encodeURIComponent(query)}`);
-  return data;
+  return data.map(mapUser);
 }

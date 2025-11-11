@@ -21,3 +21,41 @@ export type MainTabsParamList = {
   Notifications: undefined;
   Profile: undefined;
 };
+
+export type FeedStackParamList = {
+  FeedHome: undefined;
+  PostDetails: { postId: number; post?: unknown } | undefined;
+  CreatePost: undefined;
+  SearchProfiles: undefined;
+  UserProfile: { userId: number };
+};
+
+export type MessagesStackParamList = {
+  Threads: undefined;
+  Chat: { threadId: number; otherUserId?: number };
+};
+
+export type ProfileStackParamList = {
+  ProfileHome: undefined;
+  SearchProfiles: undefined;
+  UserProfile: { userId: number };
+};
+
+export type FeedStackParamList = {
+  FeedHome: undefined;
+  PostDetails: { postId: number; post?: any } | undefined;
+  CreatePost: undefined;
+  SearchProfiles: undefined;
+  UserProfile: { userId: number };
+};
+
+export type MessagesStackParamList = {
+  Threads: undefined;
+  Chat: { threadId: number };
+};
+
+export type ProfileStackParamList = {
+  ProfileHome: undefined;
+  SearchProfiles: undefined;
+  UserProfile: { userId: number };
+};

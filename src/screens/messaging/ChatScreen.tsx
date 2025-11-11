@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { RouteProp, useRoute } from '@react-navigation/native';
+import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 
 import { connectWebSocket } from '@lib/websocket';
 import { useAuthStore } from '@store/authStore';
@@ -17,13 +17,16 @@ import type { Message } from '@schemas/messaging';
 
 interface RouteParams {
   threadId: number;
+  otherUserId?: number;
 }
 
 type ChatRoute = RouteProp<Record<'Chat', RouteParams>, 'Chat'>;
 
 export function ChatScreen() {
+  const navigation = useNavigation<any>();
   const route = useRoute<ChatRoute>();
   const threadId = route.params.threadId;
+  const otherUserId = route.params.otherUserId;
   const [input, setInput] = useState('');
   const loadThreadMessages = useMessagingStore((state) => state.loadThreadMessages);
   const sendMessage = useMessagingStore((state) => state.sendMessage);
@@ -36,6 +39,20 @@ export function ChatScreen() {
   useEffect(() => {
     loadThreadMessages(threadId).catch(() => undefined);
   }, [loadThreadMessages, threadId]);
+
+  useLayoutEffect(() => {
+    if (!otherUserId) {
+      navigation.setOptions({ headerRight: undefined });
+      return;
+    }
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity onPress={() => navigation.navigate('UserProfile', { userId: otherUserId })}>
+          <Text style={{ color: '#2563EB', fontWeight: '600' }}>Profile</Text>
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, otherUserId]);
 
   useEffect(() => {
     if (!token) {
