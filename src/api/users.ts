@@ -80,3 +80,19 @@ export async function listFollowing(userId: number): Promise<User[]> {
   const { data } = await apiClient.get<User[]>(`/users/${userId}/following/`);
   return data;
 }
+
+export interface UserSummary {
+  id: number;
+  handle: string;
+  name: string;
+  photo: string;
+}
+
+export async function searchUsers(query: string): Promise<UserSummary[]> {
+  if (!query.trim()) {
+    return [];
+  }
+  // Endpoint powered by apps/search/urls.py -> /search/users/
+  const { data } = await apiClient.get<UserSummary[]>(`/search/users/?q=${encodeURIComponent(query)}`);
+  return data;
+}

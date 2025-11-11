@@ -30,11 +30,25 @@ export async function getFeed(params?: { page?: number; cursor?: string }): Prom
     page: params?.page,
     cursor: params?.cursor,
   });
-  const { data } = await apiClient.get<TimelineEntry[]>(url);
-  const lastEntry = data[data.length - 1];
+  const { data } = await apiClient.get<unknown>(url);
+
+  let entries: TimelineEntry[] = [];
+  if (Array.isArray(data)) {
+    entries = data;
+  } else if (data && typeof data === 'object' && Array.isArray((data as any).results)) {
+    entries = (data as { results: TimelineEntry[] }).results;
+  }
+
+  const lastEntry = entries[entries.length - 1];
+  const nextCursor =
+    (data as { next_cursor?: string | null })?.next_cursor ??
+    (data as { next?: string | null })?.next ??
+    lastEntry?.created_at ??
+    null;
+
   return {
-    results: data,
-    nextCursor: lastEntry?.created_at ?? null,
+    results: entries,
+    nextCursor,
   };
 }
 
