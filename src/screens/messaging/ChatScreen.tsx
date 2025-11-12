@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -23,6 +23,8 @@ interface RouteParams {
 
 type ChatRoute = RouteProp<Record<'Chat', RouteParams>, 'Chat'>;
 
+const EMPTY_MESSAGES: Message[] = [];
+
 export function ChatScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<ChatRoute>();
@@ -33,7 +35,8 @@ export function ChatScreen() {
   const loadThreadMessages = useMessagingStore((state) => state.loadThreadMessages);
   const sendMessage = useMessagingStore((state) => state.sendMessage);
   const handleIncomingMessage = useMessagingStore((state) => state.handleIncomingMessage);
-  const messages = useMessagingStore((state) => state.messagesByThread[String(threadId)] ?? []);
+  const messages =
+    useMessagingStore((state) => state.messagesByThread[String(threadId)]) ?? undefined;
   const isLoading = useMessagingStore((state) => state.isLoadingMessages);
   const token = useAuthStore((state) => state.accessToken);
   const currentUserId = useAuthStore((state) => state.currentUser?.id);
@@ -86,7 +89,9 @@ export function ChatScreen() {
     }
   }, [input, isSending, sendMessage, threadId]);
 
-  if (isLoading && messages.length === 0) {
+  const threadMessages = useMemo(() => messages ?? EMPTY_MESSAGES, [messages]);
+
+  if (isLoading && threadMessages.length === 0) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator />
@@ -97,7 +102,7 @@ export function ChatScreen() {
   return (
     <View style={styles.container}>
       <FlatList
-        data={messages}
+        data={threadMessages}
         keyExtractor={(item) => String(item.id)}
         renderItem={({ item }) => <MessageBubble message={item} currentUserId={currentUserId} />}
         contentContainerStyle={styles.listContent}

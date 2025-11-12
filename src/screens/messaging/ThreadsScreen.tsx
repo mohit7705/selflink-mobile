@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -25,6 +25,19 @@ export function ThreadsScreen() {
     loadThreads().catch(() => undefined);
   }, [loadThreads]);
 
+  const openProfile = useCallback(
+    (userId: number) => {
+      navigation.navigate(
+        'Profile' as never,
+        {
+          screen: 'UserProfile',
+          params: { userId },
+        } as never,
+      );
+    },
+    [navigation],
+  );
+
   const renderThread = (thread: Thread) => {
     const otherUser =
       currentUserId != null
@@ -48,7 +61,7 @@ export function ThreadsScreen() {
         {otherUser ? (
           <TouchableOpacity
             style={styles.profileLink}
-            onPress={() => navigation.navigate('UserProfile', { userId: otherUser.id })}
+            onPress={() => openProfile(otherUser.id)}
           >
             <Text style={styles.profileLinkText}>View profile</Text>
           </TouchableOpacity>
