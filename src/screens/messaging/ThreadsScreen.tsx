@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 
+import { navigateToUserProfile } from '@navigation/helpers';
 import { useMessagingStore } from '@store/messagingStore';
 import { useAuthStore } from '@store/authStore';
 import type { Thread } from '@schemas/messaging';
@@ -27,13 +28,7 @@ export function ThreadsScreen() {
 
   const openProfile = useCallback(
     (userId: number) => {
-      navigation.navigate(
-        'Profile' as never,
-        {
-          screen: 'UserProfile',
-          params: { userId },
-        } as never,
-      );
+      navigateToUserProfile(navigation, userId);
     },
     [navigation],
   );

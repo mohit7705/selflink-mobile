@@ -12,6 +12,7 @@ import {
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 
 import { connectWebSocket } from '@lib/websocket';
+import { navigateToUserProfile } from '@navigation/helpers';
 import { useAuthStore } from '@store/authStore';
 import { useMessagingStore } from '@store/messagingStore';
 import type { Message } from '@schemas/messaging';
@@ -52,7 +53,7 @@ export function ChatScreen() {
     }
     navigation.setOptions({
       headerRight: () => (
-        <TouchableOpacity onPress={() => navigation.navigate('UserProfile', { userId: otherUserId })}>
+        <TouchableOpacity onPress={() => navigateToUserProfile(navigation, otherUserId)}>
           <Text style={{ color: '#2563EB', fontWeight: '600' }}>Profile</Text>
         </TouchableOpacity>
       ),
@@ -79,11 +80,19 @@ export function ChatScreen() {
     }
     setIsSending(true);
     try {
-      await sendMessage(threadId, input.trim());
+      const payload = input.trim();
+      if (__DEV__) {
+        console.log('[ChatScreen] sendMessage', { threadId, preview: payload.slice(0, 32) });
+      }
+      await sendMessage(threadId, payload);
       setInput('');
-    } catch (error) {
+    } catch (error: unknown) {
       console.warn('ChatScreen: failed to send message', error);
-      Alert.alert('Unable to send message', 'Please try again.');
+      const detail =
+        typeof error === 'object' && error && 'response' in error
+          ? (error as any).response?.data?.detail ?? ''
+          : '';
+      Alert.alert('Unable to send message', detail || 'Please try again.');
     } finally {
       setIsSending(false);
     }
