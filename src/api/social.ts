@@ -103,8 +103,9 @@ export async function unlikePost(postId: string | number): Promise<void> {
 }
 
 export async function addComment(postId: string | number, text: string): Promise<Comment> {
+  const post = typeof postId === 'bigint' ? postId.toString() : String(postId);
   const { data } = await apiClient.post<Comment>('/comments/', {
-    post: postId,
+    post,
     text,
   });
   return data;

@@ -101,16 +101,18 @@ export function UserProfileScreen() {
 
   const openChatScreen = useCallback(
     (threadId: number, otherUserId?: number) => {
-      const parent = navigation.getParent?.();
-      if (parent?.navigate) {
-        parent.navigate(
-          'Messages' as never,
-          {
-            screen: 'Chat',
-            params: { threadId, otherUserId },
-          } as never,
-        );
-        return;
+      const params = {
+        screen: 'Chat',
+        params: { threadId, otherUserId },
+      } as never;
+      let parent = navigation.getParent?.();
+      while (parent) {
+        const state = parent.getState?.();
+        if (state?.routeNames?.includes('Messages')) {
+          parent.navigate('Messages' as never, params);
+          return;
+        }
+        parent = parent.getParent?.();
       }
       navigation.navigate('Chat' as never, { threadId, otherUserId } as never);
     },

@@ -3,6 +3,9 @@ import type { CreateThreadPayload, Message, Thread } from '@schemas/messaging';
 
 type ListPayload<T> = T[] | { results?: T[] | null };
 
+const toIdString = (value: number | string | bigint) =>
+  typeof value === 'bigint' ? value.toString() : String(value);
+
 function extractResults<T>(payload: ListPayload<T>): T[] {
   if (Array.isArray(payload)) {
     return payload;
@@ -39,7 +42,7 @@ export async function getThreadMessages(
 
 export async function sendMessage(threadId: string | number, text: string): Promise<Message> {
   const { data } = await apiClient.post<Message>('/messages/', {
-    thread: threadId,
+    thread: toIdString(threadId),
     body: text,
   });
   return data;
@@ -49,7 +52,7 @@ export async function getOrCreateDirectThread(
   userId: number | string,
   initialMessage?: string,
 ): Promise<Thread> {
-  const payload: Record<string, unknown> = { user_id: userId };
+  const payload: Record<string, unknown> = { user_id: toIdString(userId) };
   if (initialMessage?.trim()) {
     payload.initial_message = initialMessage.trim();
   }
