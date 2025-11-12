@@ -136,6 +136,12 @@ export async function getPostComments(postId: string | number, page?: number): P
     post: String(postId),
     page,
   });
-  const { data } = await apiClient.get<Comment[]>(url);
-  return data;
+  const { data } = await apiClient.get<unknown>(url);
+  if (Array.isArray(data)) {
+    return data;
+  }
+  if (data && typeof data === 'object' && Array.isArray((data as any).results)) {
+    return (data as { results: Comment[] }).results;
+  }
+  return [];
 }
