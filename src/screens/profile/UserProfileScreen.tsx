@@ -32,7 +32,7 @@ export function UserProfileScreen() {
   const [followPending, setFollowPending] = useState(false);
   const [messagePending, setMessagePending] = useState(false);
   const currentUserId = useAuthStore((state) => state.currentUser?.id);
-  const upsertThread = useMessagingStore((state) => state.upsertThread);
+  const mergeThread = useMessagingStore((state) => state.mergeThread);
   const userId = route.params.userId;
 
   useEffect(() => {
@@ -117,7 +117,7 @@ export function UserProfileScreen() {
     setMessagePending(true);
     try {
       const thread = await getOrCreateDirectThread(profile.id);
-      upsertThread(thread);
+      mergeThread(thread);
       openChatScreen(thread.id, profile.id);
     } catch (err) {
       console.warn('UserProfile: failed to start DM', err);
@@ -125,7 +125,7 @@ export function UserProfileScreen() {
     } finally {
       setMessagePending(false);
     }
-  }, [isOwnProfile, openChatScreen, profile, upsertThread]);
+  }, [isOwnProfile, mergeThread, openChatScreen, profile]);
 
   if (loading) {
     return (

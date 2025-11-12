@@ -9,12 +9,10 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
-
-import { connectWebSocket } from '@lib/websocket';
+import { RouteProp, useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { navigateToUserProfile } from '@navigation/helpers';
 import { useAuthStore } from '@store/authStore';
-import { useMessagingStore } from '@store/messagingStore';
+import { useMessagingStore, type MessagingState } from '@store/messagingStore';
 import type { Message } from '@schemas/messaging';
 
 interface RouteParams {
@@ -35,11 +33,14 @@ export function ChatScreen() {
   const [isSending, setIsSending] = useState(false);
   const loadThreadMessages = useMessagingStore((state) => state.loadThreadMessages);
   const sendMessage = useMessagingStore((state) => state.sendMessage);
-  const handleIncomingMessage = useMessagingStore((state) => state.handleIncomingMessage);
-  const messages =
-    useMessagingStore((state) => state.messagesByThread[String(threadId)]) ?? undefined;
+  const markThreadRead = useMessagingStore((state) => state.markThreadRead);
+  const setActiveThread = useMessagingStore((state) => state.setActiveThread);
+  const messagesSelector = useMemo(
+    () => (state: MessagingState) => state.messagesByThread[String(threadId)],
+    [threadId],
+  );
+  const messages = useMessagingStore(messagesSelector) ?? undefined;
   const isLoading = useMessagingStore((state) => state.isLoadingMessages);
-  const token = useAuthStore((state) => state.accessToken);
   const currentUserId = useAuthStore((state) => state.currentUser?.id);
 
   useEffect(() => {
@@ -60,19 +61,16 @@ export function ChatScreen() {
     });
   }, [navigation, otherUserId]);
 
-  useEffect(() => {
-    if (!token) {
-      return;
-    }
-    const disconnect = connectWebSocket(token, {
-      onMessage: (payload) => {
-        if (payload?.type === 'message' && String(payload.thread) === String(threadId)) {
-          handleIncomingMessage(payload.message ?? (payload as Message));
-        }
-      },
-    });
-    return disconnect;
-  }, [token, threadId, handleIncomingMessage]);
+  useFocusEffect(
+    useCallback(() => {
+      const key = String(threadId);
+      setActiveThread(key);
+      markThreadRead(threadId).catch(() => undefined);
+      return () => {
+        setActiveThread(null);
+      };
+    }, [markThreadRead, setActiveThread, threadId]),
+  );
 
   const handleSend = useCallback(async () => {
     if (!input.trim() || isSending) {

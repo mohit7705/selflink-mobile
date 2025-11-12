@@ -12,6 +12,7 @@ module.exports = function (api) {
           '@theme': './src/theme.ts',
           '@navigation': './src/navigation',
           '@lib': './src/lib',
+          '@realtime': './src/realtime',
           '@utils': './src/utils',
           '@hooks': './src/hooks',
           '@config': './src/config',

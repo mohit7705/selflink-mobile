@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
@@ -11,6 +12,7 @@ import { NotificationsScreen } from '@screens/notifications/NotificationsScreen'
 import { ProfileScreen } from '@screens/profile/ProfileScreen';
 import { SearchProfilesScreen } from '@screens/profile/SearchProfilesScreen';
 import { UserProfileScreen } from '@screens/profile/UserProfileScreen';
+import { selectTotalUnread, useMessagingStore } from '@store/messagingStore';
 
 import type {
   MainTabsParamList,
@@ -56,13 +58,30 @@ function ProfileStackNavigator() {
 }
 
 export function MainTabsNavigator() {
+  const totalUnread = useMessagingStore(selectTotalUnread);
+  const messagesOptions = useMemo(() => {
+    const badge =
+      totalUnread > 0 ? (totalUnread > 99 ? '99+' : String(totalUnread)) : undefined;
+    return {
+      tabBarBadge: badge,
+      tabBarBadgeStyle: badge ? MESSAGE_BADGE_STYLE : undefined,
+      headerShown: false,
+    };
+  }, [totalUnread]);
+
   return (
     <Tab.Navigator screenOptions={{ headerShown: false }}>
       <Tab.Screen name="Feed" component={FeedStackNavigator} />
-      <Tab.Screen name="Messages" component={MessagesStackNavigator} />
+      <Tab.Screen name="Messages" component={MessagesStackNavigator} options={messagesOptions} />
       <Tab.Screen name="Mentor" component={MentorHomeScreen} />
       <Tab.Screen name="Notifications" component={NotificationsScreen} />
       <Tab.Screen name="Profile" component={ProfileStackNavigator} />
     </Tab.Navigator>
   );
 }
+
+const MESSAGE_BADGE_STYLE = {
+  backgroundColor: '#22c55e',
+  color: '#fff',
+  fontSize: 11,
+};

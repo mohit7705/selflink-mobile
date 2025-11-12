@@ -2,6 +2,7 @@ import { useCallback, useEffect } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  RefreshControl,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -10,15 +11,20 @@ import {
 import { useNavigation } from '@react-navigation/native';
 
 import { navigateToUserProfile } from '@navigation/helpers';
-import { useMessagingStore } from '@store/messagingStore';
+import {
+  selectIsLoadingThreads,
+  selectMessagingError,
+  selectThreads,
+  useMessagingStore,
+} from '@store/messagingStore';
 import { useAuthStore } from '@store/authStore';
 import type { Thread } from '@schemas/messaging';
 
 export function ThreadsScreen() {
   const navigation = useNavigation<any>();
-  const threads = useMessagingStore((state) => state.threads);
-  const isLoading = useMessagingStore((state) => state.isLoadingThreads);
-  const error = useMessagingStore((state) => state.error);
+  const threads = useMessagingStore(selectThreads);
+  const isLoading = useMessagingStore(selectIsLoadingThreads);
+  const error = useMessagingStore(selectMessagingError);
   const loadThreads = useMessagingStore((state) => state.loadThreads);
   const currentUserId = useAuthStore((state) => state.currentUser?.id);
 
@@ -33,37 +39,48 @@ export function ThreadsScreen() {
     [navigation],
   );
 
-  const renderThread = (thread: Thread) => {
-    const otherUser =
-      currentUserId != null
-        ? thread.participants?.find((participant) => participant.id !== currentUserId)
-        : undefined;
-    const title = otherUser?.name || otherUser?.handle || thread.title || 'Conversation';
-
-    return (
-      <View>
-        <TouchableOpacity
-          style={styles.thread}
-          onPress={() => navigation.navigate('Chat', { threadId: thread.id, otherUserId: otherUser?.id })}
-        >
-          <Text style={styles.threadTitle}>{title}</Text>
-          {thread.last_message?.body ? (
-            <Text style={styles.threadPreview}>{thread.last_message.body}</Text>
-          ) : (
-            <Text style={styles.threadPreview}>No messages yet.</Text>
-          )}
-        </TouchableOpacity>
-        {otherUser ? (
+  const renderThread = useCallback(
+    ({ item }: { item: Thread }) => {
+      const otherUser =
+        currentUserId != null
+          ? item.participants?.find((participant) => participant.id !== currentUserId)
+          : undefined;
+      const title = otherUser?.name || otherUser?.handle || item.title || 'Conversation';
+      const preview = item.last_message?.body ?? 'No messages yet.';
+      const isUnread = (item.unread_count ?? 0) > 0;
+      return (
+        <View>
           <TouchableOpacity
-            style={styles.profileLink}
-            onPress={() => openProfile(otherUser.id)}
+            style={styles.thread}
+            onPress={() => navigation.navigate('Chat', { threadId: item.id, otherUserId: otherUser?.id })}
           >
-            <Text style={styles.profileLinkText}>View profile</Text>
+            <View style={styles.threadHeader}>
+              <Text style={styles.threadTitle}>{title}</Text>
+              {isUnread ? (
+                <View style={styles.unreadPill}>
+                  <Text style={styles.unreadText}>{Math.min(item.unread_count ?? 0, 99)}</Text>
+                </View>
+              ) : null}
+            </View>
+            <Text style={[styles.threadPreview, isUnread && styles.threadPreviewUnread]} numberOfLines={1}>
+              {preview}
+            </Text>
           </TouchableOpacity>
-        ) : null}
-      </View>
-    );
-  };
+          {otherUser ? (
+            <TouchableOpacity
+              style={styles.profileLink}
+              onPress={() => openProfile(otherUser.id)}
+            >
+              <Text style={styles.profileLinkText}>View profile</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
+      );
+    },
+    [currentUserId, navigation, openProfile],
+  );
+
+  const keyExtractor = useCallback((item: Thread) => String(item.id), []);
 
   if (isLoading && threads.length === 0) {
     return (
@@ -84,10 +101,25 @@ export function ThreadsScreen() {
   return (
     <FlatList
       data={threads}
-      keyExtractor={(item) => String(item.id)}
-      renderItem={({ item }) => renderThread(item)}
+      keyExtractor={keyExtractor}
+      renderItem={renderThread}
       ItemSeparatorComponent={() => <View style={styles.separator} />}
       contentContainerStyle={styles.listContent}
+      refreshControl={
+        <RefreshControl
+          refreshing={isLoading && threads.length > 0}
+          onRefresh={() => {
+            loadThreads().catch(() => undefined);
+          }}
+        />
+      }
+      ListEmptyComponent={
+        !isLoading ? (
+          <View style={styles.centered}>
+            <Text>No conversations yet.</Text>
+          </View>
+        ) : null
+      }
     />
   );
 }
@@ -97,6 +129,17 @@ const styles = StyleSheet.create({
   thread: { paddingVertical: 12 },
   threadTitle: { fontWeight: '600', marginBottom: 4 },
   threadPreview: { color: '#475569' },
+  threadPreviewUnread: { fontWeight: '600', color: '#0f172a' },
+  threadHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
+  unreadPill: {
+    minWidth: 24,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 999,
+    backgroundColor: '#22c55e',
+    alignItems: 'center',
+  },
+  unreadText: { color: '#fff', fontWeight: '600', fontSize: 12 },
   profileLink: {
     alignSelf: 'flex-start',
     paddingVertical: 4,

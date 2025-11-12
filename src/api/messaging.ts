@@ -141,3 +141,16 @@ export async function getThread(threadId: string | number): Promise<Thread> {
   rememberThreadFromResponse(parsed, precise);
   return parsed;
 }
+
+export async function markThreadRead(threadId: string | number): Promise<void> {
+  await apiClient.post(`/threads/${resolveThreadId(threadId)}/read/`, {});
+}
+
+export async function getMessage(messageId: string | number): Promise<Message> {
+  const { parsed, precise } = await requestWithPrecision<Message>({
+    method: 'GET',
+    url: `/messages/${messageId}/`,
+  });
+  rememberThreadFromResponse(parsed, precise);
+  return parsed;
+}

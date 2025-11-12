@@ -8,6 +8,7 @@ import type { OnboardingStackParamList, RootStackParamList } from './types';
 import { PersonalMapScreen } from '@screens/onboarding/PersonalMapScreen';
 import { useAuthStore } from '@store/authStore';
 import { useAuthHydration } from '@hooks/useAuthHydration';
+import { useMessagingSync } from '@hooks/useMessagingSync';
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 const OnboardingStack = createNativeStackNavigator<OnboardingStackParamList>();
@@ -46,6 +47,7 @@ export function RootNavigator() {
   }
 
   const needsOnboarding = isAuthenticated && !hasCompletedPersonalMap;
+  useMessagingSync(isAuthenticated && !needsOnboarding);
 
   return (
     <NavigationContainer theme={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
