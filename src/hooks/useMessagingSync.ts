@@ -38,43 +38,49 @@ export function useMessagingSync(enabled: boolean) {
     if (pollTimerRef.current) {
       clearInterval(pollTimerRef.current);
       pollTimerRef.current = null;
+      if (typeof __DEV__ !== 'undefined' && __DEV__) {
+        console.debug('messagingSync: stop polling');
+      }
     }
   }, []);
 
-  const startPolling = useCallback(() => {
-    if (!enabled || pollTimerRef.current) {
+  const ensurePolling = useCallback(() => {
+    const shouldPoll = enabled && appStateRef.current === 'active' && !realtimeConnectedRef.current;
+    if (!shouldPoll) {
+      stopPolling();
       return;
+    }
+    if (pollTimerRef.current) {
+      return;
+    }
+    if (typeof __DEV__ !== 'undefined' && __DEV__) {
+      console.debug('messagingSync: start polling');
     }
     syncThreads().catch(() => undefined);
     pollTimerRef.current = setInterval(() => {
       syncThreads().catch(() => undefined);
     }, POLL_INTERVAL_MS);
-  }, [enabled, syncThreads]);
+  }, [enabled, stopPolling, syncThreads]);
 
   useEffect(() => {
     const handleAppStateChange = (next: AppStateStatus) => {
       const prev = appStateRef.current;
       appStateRef.current = next;
       if (!enabled) {
+        stopPolling();
         return;
       }
-      if (next === 'active') {
-        if (prev !== 'active') {
-          syncThreads().catch(() => undefined);
-        }
-        if (!realtimeConnectedRef.current) {
-          startPolling();
-        }
-      } else {
-        stopPolling();
+      if (next === 'active' && prev !== 'active') {
+        syncThreads().catch(() => undefined);
       }
+      ensurePolling();
     };
 
     const subscription = AppState.addEventListener('change', handleAppStateChange);
     return () => {
       subscription.remove();
     };
-  }, [enabled, startPolling, stopPolling, syncThreads]);
+  }, [enabled, ensurePolling, stopPolling, syncThreads]);
 
   const fetchMessageDetails = useCallback((messageId?: number) => {
     if (!messageId) {
@@ -127,11 +133,10 @@ export function useMessagingSync(enabled: boolean) {
           stopPolling();
         } else if (status === 'closed') {
           realtimeConnectedRef.current = false;
-          if (appStateRef.current === 'active') {
-            startPolling();
-          }
+          ensurePolling();
         } else if (status === 'connecting') {
           realtimeConnectedRef.current = false;
+          ensurePolling();
         }
         return;
       }
@@ -141,7 +146,7 @@ export function useMessagingSync(enabled: boolean) {
         // no-op for now
       }
     },
-    [handleRealtimeMessage, startPolling, stopPolling],
+    [ensurePolling, handleRealtimeMessage, stopPolling],
   );
 
   useEffect(() => {
@@ -159,6 +164,7 @@ export function useMessagingSync(enabled: boolean) {
     const connection = connectRealtime(token);
     connectionRef.current = connection;
     const unsubscribe = connection.subscribe(handleRealtimePayload);
+    ensurePolling();
     return () => {
       unsubscribe();
       connection.disconnect();
@@ -166,5 +172,5 @@ export function useMessagingSync(enabled: boolean) {
       realtimeConnectedRef.current = false;
       stopPolling();
     };
-  }, [enabled, handleRealtimePayload, resetMessaging, stopPolling, syncThreads, token]);
+  }, [enabled, ensurePolling, handleRealtimePayload, resetMessaging, stopPolling, syncThreads, token]);
 }

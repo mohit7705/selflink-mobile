@@ -7,6 +7,7 @@ import { apiClient, setAuthTokenProvider, setRefreshHandler } from '@api/client'
 import * as usersApi from '@api/users';
 import { LoginPayload, RegisterPayload } from '@schemas/auth';
 import { PersonalMapProfile, User } from '@schemas/user';
+import { useMessagingStore } from '@store/messagingStore';
 
 import type { PersonalMapPayload } from '@api/users';
 
@@ -26,6 +27,22 @@ export type AuthStore = {
   savePersonalMap: (payload: PersonalMapPayload) => Promise<PersonalMapProfile>;
   setError: (message: string | null) => void;
   applySession: (token: string | null, refreshToken: string | null) => Promise<void>;
+};
+
+const resetMessagingStore = () => {
+  try {
+    useMessagingStore.getState().reset();
+  } catch (error) {
+    console.warn('authStore: failed to reset messaging store', error);
+  }
+};
+
+const setMessagingSessionUser = (userId: number | null) => {
+  try {
+    useMessagingStore.getState().setSessionUserId(userId);
+  } catch (error) {
+    console.warn('authStore: failed to update messaging session user', error);
+  }
 };
 
 const useAuthStore = create<AuthStore>()(
@@ -77,6 +94,8 @@ const useAuthStore = create<AuthStore>()(
             error: null,
           });
           delete apiClient.defaults.headers.common.Authorization;
+          resetMessagingStore();
+          setMessagingSessionUser(null);
         },
         async refreshSession() {
           const refreshToken = get().refreshToken;
@@ -113,6 +132,7 @@ const useAuthStore = create<AuthStore>()(
               personalMap,
               hasCompletedPersonalMap: Boolean(personalMap?.is_complete),
             });
+            setMessagingSessionUser(user?.id ?? null);
           } catch (error) {
             const message = error instanceof Error ? error.message : 'Unable to load profile';
             set({ error: message });
@@ -134,6 +154,8 @@ const useAuthStore = create<AuthStore>()(
             apiClient.defaults.headers.common.Authorization = `Bearer ${token}`;
           } else {
             delete apiClient.defaults.headers.common.Authorization;
+            resetMessagingStore();
+            setMessagingSessionUser(null);
           }
         },
       };

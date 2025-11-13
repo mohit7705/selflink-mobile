@@ -77,10 +77,30 @@ export function connectRealtime(token: string, urlOverride?: string): RealtimeCo
     if (token) {
       url.searchParams.set('token', token);
     }
-    socket = new WebSocket(url.toString());
+    const urlString = url.toString();
+    if (typeof __DEV__ !== 'undefined' && __DEV__) {
+      console.debug('realtime: connect start', { url: urlString, attempt });
+    }
+    socket = new WebSocket(urlString);
+    let disconnectHandled = false;
+    const handleDisconnect = (reason: 'closed' | 'error') => {
+      if (disconnectHandled) {
+        return;
+      }
+      disconnectHandled = true;
+      notify({ type: 'status', status: 'closed', attempt });
+      if (typeof __DEV__ !== 'undefined' && __DEV__) {
+        console.debug('realtime: disconnected', { url: urlString, reason });
+      }
+      cleanupSocket();
+      scheduleReconnect();
+    };
     socket.onopen = () => {
       attempt = 0;
       notify({ type: 'status', status: 'open', attempt: 0 });
+      if (typeof __DEV__ !== 'undefined' && __DEV__) {
+        console.debug('realtime: open', { url: urlString });
+      }
       if (pingTimer) {
         clearInterval(pingTimer);
       }
@@ -98,13 +118,21 @@ export function connectRealtime(token: string, urlOverride?: string): RealtimeCo
         console.warn('realtime: failed to parse payload', error);
       }
     };
-    socket.onerror = (error) => {
-      console.warn('realtime: socket error', error);
+    socket.onerror = (event) => {
+      const details =
+        event && typeof event === 'object' && 'message' in event
+          ? String((event as { message?: string }).message)
+          : undefined;
+      const logPayload = { url: urlString, message: details };
+      if (typeof __DEV__ !== 'undefined' && __DEV__) {
+        console.debug('realtime: error', logPayload);
+      } else {
+        console.warn('realtime: socket error', logPayload);
+      }
+      handleDisconnect('error');
     };
     socket.onclose = () => {
-      notify({ type: 'status', status: 'closed', attempt });
-      cleanupSocket();
-      scheduleReconnect();
+      handleDisconnect('closed');
     };
   };
 
@@ -127,6 +155,9 @@ export function connectRealtime(token: string, urlOverride?: string): RealtimeCo
       if (reconnectTimer) {
         clearTimeout(reconnectTimer);
         reconnectTimer = null;
+      }
+      if (typeof __DEV__ !== 'undefined' && __DEV__) {
+        console.debug('realtime: disconnect requested');
       }
       socket?.close();
       cleanupSocket();

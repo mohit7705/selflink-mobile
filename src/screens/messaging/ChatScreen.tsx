@@ -31,10 +31,13 @@ export function ChatScreen() {
   const otherUserId = route.params.otherUserId;
   const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const loadThreadMessages = useMessagingStore((state) => state.loadThreadMessages);
   const sendMessage = useMessagingStore((state) => state.sendMessage);
   const markThreadRead = useMessagingStore((state) => state.markThreadRead);
   const setActiveThread = useMessagingStore((state) => state.setActiveThread);
+  const syncThreads = useMessagingStore((state) => state.syncThreads);
+  const removeMessage = useMessagingStore((state) => state.removeMessage);
   const messagesSelector = useMemo(
     () => (state: MessagingState) => state.messagesByThread[String(threadId)],
     [threadId],
@@ -68,8 +71,9 @@ export function ChatScreen() {
       markThreadRead(threadId).catch(() => undefined);
       return () => {
         setActiveThread(null);
+        syncThreads().catch(() => undefined);
       };
-    }, [markThreadRead, setActiveThread, threadId]),
+    }, [markThreadRead, setActiveThread, syncThreads, threadId]),
   );
 
   const handleSend = useCallback(async () => {
@@ -98,6 +102,34 @@ export function ChatScreen() {
 
   const threadMessages = useMemo(() => messages ?? EMPTY_MESSAGES, [messages]);
 
+  const confirmDeleteMessage = useCallback(
+    (message: Message) => {
+      if (pendingDeleteId) {
+        return;
+      }
+      Alert.alert('Delete message?', 'This removes the message for you only.', [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete for me',
+          style: 'destructive',
+          onPress: () => {
+            const key = String(message.id);
+            setPendingDeleteId(key);
+            removeMessage(threadId, message.id)
+              .catch((error) => {
+                console.warn('ChatScreen: delete message failed', error);
+                Alert.alert('Unable to delete message', 'Please try again.');
+              })
+              .finally(() => {
+                setPendingDeleteId((current) => (current === key ? null : current));
+              });
+          },
+        },
+      ]);
+    },
+    [pendingDeleteId, removeMessage, threadId],
+  );
+
   if (isLoading && threadMessages.length === 0) {
     return (
       <View style={styles.centered}>
@@ -111,7 +143,14 @@ export function ChatScreen() {
       <FlatList
         data={threadMessages}
         keyExtractor={(item) => String(item.id)}
-        renderItem={({ item }) => <MessageBubble message={item} currentUserId={currentUserId} />}
+        renderItem={({ item }) => (
+          <MessageBubble
+            message={item}
+            currentUserId={currentUserId}
+            onLongPress={confirmDeleteMessage}
+            disableActions={Boolean(pendingDeleteId)}
+          />
+        )}
         contentContainerStyle={styles.listContent}
         inverted
       />
@@ -134,13 +173,32 @@ export function ChatScreen() {
   );
 }
 
-const MessageBubble = ({ message, currentUserId }: { message: Message; currentUserId?: number }) => {
+const MessageBubble = ({
+  message,
+  currentUserId,
+  onLongPress,
+  disableActions,
+}: {
+  message: Message;
+  currentUserId?: number;
+  onLongPress?: (message: Message) => void;
+  disableActions?: boolean;
+}) => {
   const isOwn = currentUserId === message.sender.id;
   return (
-    <View style={[styles.messageBubble, isOwn ? styles.bubbleOwn : styles.bubbleOther]}>
+    <TouchableOpacity
+      activeOpacity={0.8}
+      delayLongPress={250}
+      onLongPress={() => {
+        if (!disableActions) {
+          onLongPress?.(message);
+        }
+      }}
+      style={[styles.messageBubble, isOwn ? styles.bubbleOwn : styles.bubbleOther]}
+    >
       {!isOwn && <Text style={styles.sender}>{message.sender.name}</Text>}
       <Text>{message.body}</Text>
-    </View>
+    </TouchableOpacity>
   );
 };
 

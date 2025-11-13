@@ -1,5 +1,6 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
+  Alert,
   ActivityIndicator,
   FlatList,
   RefreshControl,
@@ -26,7 +27,9 @@ export function ThreadsScreen() {
   const isLoading = useMessagingStore(selectIsLoadingThreads);
   const error = useMessagingStore(selectMessagingError);
   const loadThreads = useMessagingStore((state) => state.loadThreads);
+  const removeThread = useMessagingStore((state) => state.removeThread);
   const currentUserId = useAuthStore((state) => state.currentUser?.id);
+  const [pendingThreadId, setPendingThreadId] = useState<string | null>(null);
 
   useEffect(() => {
     loadThreads().catch(() => undefined);
@@ -37,6 +40,34 @@ export function ThreadsScreen() {
       navigateToUserProfile(navigation, userId);
     },
     [navigation],
+  );
+
+  const confirmDeleteThread = useCallback(
+    (thread: Thread) => {
+      if (pendingThreadId) {
+        return;
+      }
+      Alert.alert('Delete conversation?', 'This removes the conversation from your inbox.', [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete conversation',
+          style: 'destructive',
+          onPress: () => {
+            const key = String(thread.id);
+            setPendingThreadId(key);
+            removeThread(thread.id)
+              .catch((error) => {
+                console.warn('ThreadsScreen: delete thread failed', error);
+                Alert.alert('Unable to delete conversation', 'Please try again.');
+              })
+              .finally(() => {
+                setPendingThreadId((current) => (current === key ? null : current));
+              });
+          },
+        },
+      ]);
+    },
+    [pendingThreadId, removeThread],
   );
 
   const renderThread = useCallback(
@@ -74,10 +105,24 @@ export function ThreadsScreen() {
               <Text style={styles.profileLinkText}>View profile</Text>
             </TouchableOpacity>
           ) : null}
+          <TouchableOpacity
+            style={styles.deleteLink}
+            onPress={() => confirmDeleteThread(item)}
+            disabled={pendingThreadId === String(item.id)}
+          >
+            <Text
+              style={[
+                styles.deleteLinkText,
+                pendingThreadId === String(item.id) && styles.deleteLinkDisabledText,
+              ]}
+            >
+              {pendingThreadId === String(item.id) ? 'Deleting…' : 'Delete conversation'}
+            </Text>
+          </TouchableOpacity>
         </View>
       );
     },
-    [currentUserId, navigation, openProfile],
+    [confirmDeleteThread, currentUserId, navigation, openProfile],
   );
 
   const keyExtractor = useCallback((item: Thread) => String(item.id), []);
@@ -146,6 +191,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   profileLinkText: { color: '#2563EB' },
+  deleteLink: {
+    alignSelf: 'flex-start',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  deleteLinkText: { color: '#dc2626', fontWeight: '600' },
+  deleteLinkDisabledText: { color: '#fca5a5' },
   separator: { height: 1, backgroundColor: '#E2E8F0' },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
 });

@@ -154,3 +154,11 @@ export async function getMessage(messageId: string | number): Promise<Message> {
   rememberThreadFromResponse(parsed, precise);
   return parsed;
 }
+
+export async function deleteMessage(messageId: string | number): Promise<void> {
+  await apiClient.delete(`/messages/${messageId}/`);
+}
+
+export async function deleteThread(threadId: string | number): Promise<void> {
+  await apiClient.post(`/threads/${resolveThreadId(threadId)}/leave/`, {});
+}

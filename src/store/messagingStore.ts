@@ -24,8 +24,30 @@ const normalizeThreadId = (threadId: string | number | undefined) => {
 const computeTotalUnread = (unreadByThread: UnreadMap) =>
   Object.values(unreadByThread).reduce((sum, value) => sum + Math.max(0, value), 0);
 
-const buildThreadSnapshot = (threads: Thread[]) => {
-  const sorted = sortThreadsByUpdatedAt(threads);
+const sessionOwnsThread = (thread: Thread, sessionUserId: number | null) => {
+  if (!sessionUserId) {
+    return true;
+  }
+  if (!Array.isArray(thread.members)) {
+    return true;
+  }
+  return thread.members.some((member) => {
+    const memberId =
+      typeof member?.user?.id === 'number'
+        ? member.user.id
+        : typeof (member as any)?.user_id === 'number'
+          ? (member as any)?.user_id
+          : undefined;
+    return memberId != null && String(memberId) === String(sessionUserId);
+  });
+};
+
+const filterThreadsForSession = (threads: Thread[], sessionUserId: number | null) =>
+  threads.filter((thread) => sessionOwnsThread(thread, sessionUserId));
+
+const buildThreadSnapshot = (threads: Thread[], sessionUserId: number | null) => {
+  const scopedThreads = filterThreadsForSession(threads, sessionUserId);
+  const sorted = sortThreadsByUpdatedAt(scopedThreads);
   const unreadByThread: UnreadMap = {};
   for (const thread of sorted) {
     unreadByThread[String(thread.id)] = Math.max(0, thread.unread_count ?? 0);
@@ -54,6 +76,15 @@ const applyUnreadToThread = (threads: Thread[], threadKey: string, unread: numbe
   return nextThreads;
 };
 
+const omitKey = <T>(map: Record<string, T>, key: string): Record<string, T> => {
+  if (!Object.prototype.hasOwnProperty.call(map, key)) {
+    return map;
+  }
+  const next = { ...map };
+  delete next[key];
+  return next;
+};
+
 const initialState = {
   threads: [] as Thread[],
   messagesByThread: {} as MessagesByThread,
@@ -68,7 +99,7 @@ const initialState = {
 
 const pendingReadRequests = new Set<string>();
 
-export interface MessagingState extends typeof initialState {
+export type MessagingState = typeof initialState & {
   loadThreads: () => Promise<void>;
   syncThreads: () => Promise<void>;
   setThreads: (threads: Thread[]) => void;
@@ -76,12 +107,14 @@ export interface MessagingState extends typeof initialState {
   loadThreadMessages: (threadId: string | number) => Promise<void>;
   sendMessage: (threadId: string | number, text: string) => Promise<void>;
   appendMessage: (threadId: string | number, message: Message) => void;
+  removeMessage: (threadId: string | number, messageId: string | number) => Promise<void>;
+  removeThread: (threadId: string | number) => Promise<void>;
   markThreadRead: (threadId: string | number, options?: { sync?: boolean }) => Promise<void>;
   setActiveThread: (threadId: string | null) => void;
   setSessionUserId: (userId: number | null) => void;
   recomputeTotalUnread: () => void;
   reset: () => void;
-}
+};
 
 export const useMessagingStore = create<MessagingState>((set, get) => ({
   ...initialState,
@@ -89,26 +122,120 @@ export const useMessagingStore = create<MessagingState>((set, get) => ({
     set({ isLoadingThreads: true, error: undefined });
     try {
       const threads = await messagingApi.getThreads();
-      set(buildThreadSnapshot(threads));
+      const sessionUserId = get().sessionUserId;
+      set(buildThreadSnapshot(threads, sessionUserId));
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Unable to load threads.' });
     } finally {
       set({ isLoadingThreads: false });
     }
   },
+  async removeThread(threadId) {
+    const threadKey = normalizeThreadId(threadId);
+    if (!threadKey) {
+      return;
+    }
+    const state = get();
+    const threads = state.threads.filter((thread) => String(thread.id) !== threadKey);
+    const messagesByThread = omitKey(state.messagesByThread, threadKey);
+    const unreadByThread = omitKey(state.unreadByThread, threadKey);
+    const totalUnread = computeTotalUnread(unreadByThread);
+    const activeThreadId = state.activeThreadId === threadKey ? null : state.activeThreadId;
+    set({
+      threads,
+      messagesByThread,
+      unreadByThread,
+      totalUnread,
+      activeThreadId,
+    });
+    try {
+      await messagingApi.deleteThread(threadId);
+      await get().syncThreads();
+    } catch (error) {
+      console.warn('messagingStore: removeThread failed', error);
+      await get().syncThreads();
+      throw error;
+    }
+  },
+  async removeMessage(threadId, messageId) {
+    const threadKey = normalizeThreadId(threadId);
+    const messageKey = String(messageId);
+    if (!threadKey || !messageKey) {
+      return;
+    }
+    const state = get();
+    const existingMessages = state.messagesByThread[threadKey];
+    if (!existingMessages || existingMessages.length === 0) {
+      try {
+        await messagingApi.deleteMessage(messageId);
+        await get().syncThreads();
+      } catch (error) {
+        console.warn('messagingStore: removeMessage failed', error);
+        throw error;
+      }
+      return;
+    }
+    const nextMessages = existingMessages.filter((message) => String(message.id) !== messageKey);
+    if (nextMessages.length === existingMessages.length) {
+      return;
+    }
+    const messagesByThread =
+      nextMessages.length === 0
+        ? omitKey(state.messagesByThread, threadKey)
+        : { ...state.messagesByThread, [threadKey]: nextMessages };
+    let threads = state.threads;
+    const targetIndex = threads.findIndex((thread) => String(thread.id) === threadKey);
+    if (targetIndex !== -1) {
+      const thread = threads[targetIndex];
+      const newLast = nextMessages[nextMessages.length - 1] ?? null;
+      const nextThreads = [...threads];
+      nextThreads[targetIndex] = {
+        ...thread,
+        last_message: newLast
+          ? {
+              body: newLast.body,
+              created_at: newLast.created_at,
+            }
+          : null,
+        updated_at: newLast?.created_at ?? thread.updated_at,
+      };
+      threads = sortThreadsByUpdatedAt(nextThreads);
+    }
+    set({ messagesByThread, threads });
+    try {
+      await messagingApi.deleteMessage(messageId);
+      await get().syncThreads();
+    } catch (error) {
+      console.warn('messagingStore: removeMessage rollback', error);
+      await Promise.all([
+        get()
+          .syncThreads()
+          .catch(() => undefined),
+        get()
+          .loadThreadMessages(threadId)
+          .catch(() => undefined),
+      ]);
+      throw error;
+    }
+  },
   async syncThreads() {
     try {
       const threads = await messagingApi.getThreads();
-      set(buildThreadSnapshot(threads));
+      const sessionUserId = get().sessionUserId;
+      set(buildThreadSnapshot(threads, sessionUserId));
     } catch (error) {
       console.warn('messagingStore: failed to sync threads', error);
     }
   },
   setThreads(threads) {
-    set(buildThreadSnapshot(threads));
+    const sessionUserId = get().sessionUserId;
+    set(buildThreadSnapshot(threads, sessionUserId));
   },
   mergeThread(thread) {
     const state = get();
+    if (!sessionOwnsThread(thread, state.sessionUserId)) {
+      return;
+    }
     const nextThreads = sortThreadsByUpdatedAt([
       thread,
       ...state.threads.filter((existing) => existing.id !== thread.id),
@@ -161,7 +288,20 @@ export const useMessagingStore = create<MessagingState>((set, get) => ({
     if (!key) {
       return;
     }
+    if (typeof __DEV__ !== 'undefined' && __DEV__) {
+      console.debug('messagingStore: appendMessage', { threadId: key, messageId: message.id });
+    }
     const state = get();
+    const threadFromState = state.threads.find((thread) => String(thread.id) === key);
+    const isActiveThread = state.activeThreadId === key;
+    if (!threadFromState && !isActiveThread) {
+      if (state.sessionUserId != null) {
+        get()
+          .syncThreads()
+          .catch(() => undefined);
+      }
+      return;
+    }
     const existingMessages = state.messagesByThread[key];
     const alreadyExists = existingMessages?.some((item) => item.id === message.id);
     let messagesByThread = state.messagesByThread;
@@ -178,7 +318,6 @@ export const useMessagingStore = create<MessagingState>((set, get) => ({
       sessionUserId != null &&
       message.sender?.id != null &&
       String(message.sender.id) === String(sessionUserId);
-    const isActiveThread = state.activeThreadId === key;
     const currentUnread = state.unreadByThread[key] ?? 0;
     let unreadByThread = state.unreadByThread;
     let unreadChanged = false;
@@ -241,6 +380,9 @@ export const useMessagingStore = create<MessagingState>((set, get) => ({
     if (!key) {
       return;
     }
+    if (typeof __DEV__ !== 'undefined' && __DEV__) {
+      console.debug('messagingStore: markThreadRead', { threadId: key, sync: options?.sync !== false });
+    }
     const state = get();
     if ((state.unreadByThread[key] ?? 0) !== 0) {
       const unreadByThread = { ...state.unreadByThread, [key]: 0 };
@@ -258,6 +400,9 @@ export const useMessagingStore = create<MessagingState>((set, get) => ({
 
     pendingReadRequests.add(key);
     try {
+      if (typeof __DEV__ !== 'undefined' && __DEV__) {
+        console.debug('messagingStore: markThreadRead -> POST', { threadId: key });
+      }
       await messagingApi.markThreadRead(threadId);
     } catch (error) {
       console.warn('messagingStore: failed to mark thread read', error);
@@ -278,7 +423,16 @@ export const useMessagingStore = create<MessagingState>((set, get) => ({
     set({ activeThreadId: key });
   },
   setSessionUserId(userId) {
-    if (get().sessionUserId === userId) {
+    const current = get().sessionUserId;
+    if (current === userId) {
+      return;
+    }
+    if (userId == null) {
+      set({ ...initialState });
+      return;
+    }
+    if (current != null && current !== userId) {
+      set({ ...initialState, sessionUserId: userId });
       return;
     }
     set({ sessionUserId: userId });
