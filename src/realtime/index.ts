@@ -20,6 +20,45 @@ export interface RealtimeConnection {
 const MAX_BACKOFF_MS = 30_000;
 const BASE_BACKOFF_MS = 1_000;
 const PING_INTERVAL_MS = 25_000;
+const REALTIME_PATH = '/ws';
+
+const toRealtimeProtocol = (protocol: string) => (protocol === 'https:' ? 'wss:' : 'ws:');
+
+const deriveRealtimeUrlFromBackend = (): string => {
+  try {
+    const apiUrl = new URL(env.backendUrl);
+    const defaultPort =
+      apiUrl.port ||
+      (apiUrl.protocol === 'https:' ? '443' : apiUrl.protocol === 'http:' ? '80' : '');
+    const realtimePort = defaultPort === '8000' ? '8001' : defaultPort;
+    apiUrl.protocol = toRealtimeProtocol(apiUrl.protocol);
+    apiUrl.port = realtimePort;
+    apiUrl.pathname = REALTIME_PATH;
+    apiUrl.search = '';
+    apiUrl.hash = '';
+    return apiUrl.toString();
+  } catch {
+    const normalized = env.backendUrl.replace(/^http(s)?:\/\//i, (match) =>
+      match.toLowerCase().startsWith('https') ? 'wss://' : 'ws://',
+    );
+    const trimmed = normalized.replace(/\/+$/, '');
+    return `${trimmed}${REALTIME_PATH}`;
+  }
+};
+
+const resolveRealtimeUrl = (override?: string): string => {
+  if (override) {
+    return override;
+  }
+  if (env.realtimeUrl) {
+    try {
+      return new URL(env.realtimeUrl).toString();
+    } catch {
+      // fall back
+    }
+  }
+  return deriveRealtimeUrlFromBackend();
+};
 
 export function connectRealtime(token: string, urlOverride?: string): RealtimeConnection {
   const handlers = new Set<RealtimeHandler>();
@@ -73,7 +112,7 @@ export function connectRealtime(token: string, urlOverride?: string): RealtimeCo
       reconnectTimer = null;
     }
     notify({ type: 'status', status: 'connecting', attempt });
-    const url = new URL(urlOverride || env.realtimeUrl);
+    const url = new URL(resolveRealtimeUrl(urlOverride));
     if (token) {
       url.searchParams.set('token', token);
     }
@@ -83,14 +122,17 @@ export function connectRealtime(token: string, urlOverride?: string): RealtimeCo
     }
     socket = new WebSocket(urlString);
     let disconnectHandled = false;
-    const handleDisconnect = (reason: 'closed' | 'error') => {
+    const handleDisconnect = (
+      reason: 'closed' | 'error',
+      details?: { code?: number; reason?: string; wasClean?: boolean },
+    ) => {
       if (disconnectHandled) {
         return;
       }
       disconnectHandled = true;
       notify({ type: 'status', status: 'closed', attempt });
       if (typeof __DEV__ !== 'undefined' && __DEV__) {
-        console.debug('realtime: disconnected', { url: urlString, reason });
+        console.debug('realtime: disconnected', { url: urlString, reason, ...details });
       }
       cleanupSocket();
       scheduleReconnect();
@@ -128,21 +170,35 @@ export function connectRealtime(token: string, urlOverride?: string): RealtimeCo
         console.warn('realtime: failed to parse payload', error);
       }
     };
-    socket.onerror = (event) => {
-      const details =
+    socket.onerror = (event: Event) => {
+      const message =
         event && typeof event === 'object' && 'message' in event
           ? String((event as { message?: string }).message)
           : undefined;
-      const logPayload = { url: urlString, message: details };
+      const code = typeof event === 'object' && 'code' in event ? (event as any).code : undefined;
+      const reason =
+        typeof event === 'object' && 'reason' in event ? (event as any).reason : undefined;
+      const logPayload = {
+        url: urlString,
+        type: event?.type,
+        message,
+        code,
+        reason,
+        raw: event,
+      };
       if (typeof __DEV__ !== 'undefined' && __DEV__) {
         console.debug('realtime: error', logPayload);
       } else {
         console.warn('realtime: socket error', logPayload);
       }
-      handleDisconnect('error');
+      handleDisconnect('error', { code, reason });
     };
-    socket.onclose = () => {
-      handleDisconnect('closed');
+    socket.onclose = (event) => {
+      handleDisconnect('closed', {
+        code: event?.code,
+        reason: event?.reason,
+        wasClean: event?.wasClean,
+      });
     };
   };
 

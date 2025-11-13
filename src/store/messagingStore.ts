@@ -53,6 +53,22 @@ const mergeMessagesChronologically = (
   return { merged: next, changed: true };
 };
 
+const mergeMessagesForThread = (
+  currentMap: MessagesByThread,
+  threadKey: string,
+  incoming: Message[],
+): MessagesByThread | null => {
+  const current = currentMap[threadKey];
+  const { merged, changed } = mergeMessagesChronologically(current, incoming);
+  if (!changed) {
+    return null;
+  }
+  return {
+    ...currentMap,
+    [threadKey]: merged,
+  };
+};
+
 const normalizeThreadId = (threadId: string | number | undefined) => {
   if (threadId === null || threadId === undefined) {
     return '';
@@ -166,6 +182,7 @@ export type MessagingState = typeof initialState & {
   setThreads: (threads: Thread[]) => void;
   mergeThread: (thread: Thread) => void;
   loadThreadMessages: (threadId: string | number) => Promise<void>;
+  setMessagesForThread: (threadId: string | number, messages: Message[]) => void;
   sendMessage: (threadId: string | number, text: string) => Promise<void>;
   appendMessage: (threadId: string | number, message: Message) => void;
   removeMessage: (threadId: string | number, messageId: string | number) => Promise<void>;
@@ -328,23 +345,26 @@ export const useMessagingStore = create<MessagingState>((set, get) => ({
     set({ isLoadingMessages: true, error: undefined });
     try {
       const messages = await messagingApi.getThreadMessages(threadId);
-      set((state) => {
-        const current = state.messagesByThread[key];
-        const { merged, changed } = mergeMessagesChronologically(current, messages);
-        if (!changed && current === merged) {
-          return state;
-        }
-        return {
-          messagesByThread: {
-            ...state.messagesByThread,
-            [key]: merged,
-          },
-        };
-      });
+      const state = get();
+      const messagesByThread = mergeMessagesForThread(state.messagesByThread, key, messages);
+      if (messagesByThread) {
+        set({ messagesByThread });
+      }
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Unable to load messages.' });
     } finally {
       set({ isLoadingMessages: false });
+    }
+  },
+  setMessagesForThread(threadId, messages) {
+    const key = normalizeThreadId(threadId);
+    if (!key) {
+      return;
+    }
+    const state = get();
+    const messagesByThread = mergeMessagesForThread(state.messagesByThread, key, messages);
+    if (messagesByThread) {
+      set({ messagesByThread });
     }
   },
   async sendMessage(threadId, text) {
@@ -380,7 +400,9 @@ export const useMessagingStore = create<MessagingState>((set, get) => ({
       return;
     }
     const existingMessages = state.messagesByThread[key];
-    const alreadyExists = existingMessages?.some((item) => item.id === message.id);
+    const alreadyExists = existingMessages?.some(
+      (item) => String(item.id) === String(message.id),
+    );
     let messagesByThread = state.messagesByThread;
     if (!alreadyExists) {
       const nextMessages = sortMessagesChronologically([...(existingMessages ?? []), message]);

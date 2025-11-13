@@ -10,12 +10,12 @@ import { useMessagingStore } from '@store/messagingStore';
 type MessageEnvelope = RealtimePayload & {
   type?: string;
   message?: Message;
-  message_id?: number;
+  message_id?: number | string;
   thread_id?: number | string;
   thread?: number | string;
   payload?: Record<string, unknown> & {
     message?: Message;
-    message_id?: number;
+    message_id?: number | string;
     thread_id?: number | string;
     thread?: number | string;
   };
@@ -33,12 +33,13 @@ export function useMessagingSync(enabled: boolean) {
   const setSessionUserId = useMessagingStore((state) => state.setSessionUserId);
   const resetMessaging = useMessagingStore((state) => state.reset);
   const activeThreadId = useMessagingStore((state) => state.activeThreadId);
+  const setMessagesForThread = useMessagingStore((state) => state.setMessagesForThread);
 
   const connectionRef = useRef<ReturnType<typeof connectRealtime> | null>(null);
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const realtimeConnectedRef = useRef(false);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
-  const inflightMessages = useRef(new Map<number, Promise<Message | null>>());
+  const inflightMessages = useRef(new Map<string, Promise<Message | null>>());
 
   useEffect(() => {
     setSessionUserId(currentUserId);
@@ -61,17 +62,22 @@ export function useMessagingSync(enabled: boolean) {
     syncThreads().catch((error) => {
       console.warn('messagingSync: failed to sync threads', error);
     });
-    const { activeThreadId: activeIdFromStore, loadThreadMessages } = useMessagingStore.getState();
+    const { activeThreadId: activeIdFromStore } = useMessagingStore.getState();
     if (!activeIdFromStore) {
       return;
     }
     if (typeof __DEV__ !== 'undefined' && __DEV__) {
       console.log('messagingSync: polling active thread messages', { threadId: activeIdFromStore });
     }
-    loadThreadMessages(activeIdFromStore).catch((error) => {
-      console.warn('messagingSync: failed to refresh active thread messages', error);
-    });
-  }, [syncThreads]);
+    messagingApi
+      .getThreadMessages(activeIdFromStore)
+      .then((messages) => {
+        setMessagesForThread(activeIdFromStore, messages);
+      })
+      .catch((error) => {
+        console.warn('messagingSync: failed to refresh active thread messages', error);
+      });
+  }, [setMessagesForThread, syncThreads]);
 
   const ensurePolling = useCallback(() => {
     const shouldPoll = enabled && appStateRef.current === 'active' && !realtimeConnectedRef.current;
@@ -112,11 +118,15 @@ export function useMessagingSync(enabled: boolean) {
     };
   }, [enabled, ensurePolling, pollThreadsAndActiveMessages, stopPolling]);
 
-  const fetchMessageDetails = useCallback((messageId?: number) => {
-    if (!messageId) {
+  const fetchMessageDetails = useCallback((messageId?: number | string) => {
+    if (messageId === null || messageId === undefined) {
       return Promise.resolve<Message | null>(null);
     }
-    const existing = inflightMessages.current.get(messageId);
+    const key = String(messageId);
+    if (!key) {
+      return Promise.resolve<Message | null>(null);
+    }
+    const existing = inflightMessages.current.get(key);
     if (existing) {
       return existing;
     }
@@ -127,9 +137,9 @@ export function useMessagingSync(enabled: boolean) {
         return null;
       })
       .finally(() => {
-        inflightMessages.current.delete(messageId);
+        inflightMessages.current.delete(key);
       });
-    inflightMessages.current.set(messageId, request);
+    inflightMessages.current.set(key, request);
     return request;
   }, []);
 
@@ -162,8 +172,8 @@ export function useMessagingSync(enabled: boolean) {
       let nextMessage: Message | null = null;
       if (directMessage?.sender) {
         nextMessage = directMessage;
-      } else if (payload.message_id) {
-        nextMessage = await fetchMessageDetails(payload.message_id);
+      } else if (payload.message_id !== undefined && payload.message_id !== null) {
+        nextMessage = await fetchMessageDetails(String(payload.message_id));
       }
 
       if (!nextMessage) {

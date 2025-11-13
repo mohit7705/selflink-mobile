@@ -41,11 +41,12 @@ export function ChatScreen() {
   const syncThreads = useMessagingStore((state) => state.syncThreads);
   const removeMessage = useMessagingStore((state) => state.removeMessage);
   const threadKey = useMemo(() => String(threadId), [threadId]);
-  const messagesSelector = useMemo(
-    () => (state: MessagingState) => state.messagesByThread[threadKey],
-    [threadKey],
+  const messages = useMessagingStore(
+    useCallback(
+      (state: MessagingState) => state.messagesByThread[threadKey] ?? EMPTY_MESSAGES,
+      [threadKey],
+    ),
   );
-  const messages = useMessagingStore(messagesSelector) ?? undefined;
   const isLoading = useMessagingStore((state) => state.isLoadingMessages);
   const currentUserId = useAuthStore((state) => state.currentUser?.id);
 
@@ -102,7 +103,7 @@ export function ChatScreen() {
     }
   }, [input, isSending, sendMessage, threadId]);
 
-  const threadMessages = useMemo(() => messages ?? EMPTY_MESSAGES, [messages]);
+  const threadMessages = messages;
 
   const confirmDeleteMessage = useCallback(
     (message: Message) => {

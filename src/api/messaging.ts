@@ -4,9 +4,23 @@ import { apiClient } from './client';
 import type { CreateThreadPayload, Message, Thread } from '@schemas/messaging';
 import { parseJsonPreservingLargeInts } from '@utils/json';
 
-type ListPayload<T> = T[] | { results?: T[] | null };
+type PaginatedList<T> = {
+  results?: T[] | null;
+  next?: string | null;
+  previous?: string | null;
+};
+
+type ListPayload<T> = T[] | PaginatedList<T>;
 
 const threadIdMap = new Map<string, string>();
+
+type MessageResponse = Omit<Message, 'id' | 'thread'> & {
+  id: string | number;
+  thread: string | number;
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
 
 const toKey = (value: unknown) => {
   if (value === null || value === undefined) {
@@ -25,14 +39,14 @@ const rememberThreadFromResponse = (approx: unknown, precise: unknown) => {
     });
     return;
   }
-  if (typeof approx === 'object' && typeof precise === 'object') {
-    const approxId = toKey((approx as Record<string, unknown>).id);
-    const preciseId = toKey((precise as Record<string, unknown>).id);
+  if (isRecord(approx) && isRecord(precise)) {
+    const approxId = toKey(approx.id);
+    const preciseId = toKey(precise.id);
     if (approxId && preciseId) {
       threadIdMap.set(approxId, preciseId);
     }
-    const approxResults = (approx as Record<string, unknown>).results;
-    const preciseResults = (precise as Record<string, unknown>).results;
+    const approxResults = approx.results;
+    const preciseResults = precise.results;
     if (Array.isArray(approxResults) && Array.isArray(preciseResults)) {
       approxResults.forEach((item, index) => {
         rememberThreadFromResponse(item, preciseResults[index]);
@@ -48,7 +62,7 @@ const resolveThreadId = (threadId: string | number): string => {
 
 async function requestWithPrecision<T>(config: AxiosRequestConfig): Promise<{
   parsed: T;
-  precise: unknown;
+  precise: T;
 }> {
   const response = await apiClient.request<string>({
     ...config,
@@ -62,19 +76,32 @@ async function requestWithPrecision<T>(config: AxiosRequestConfig): Promise<{
         ? String(response.data)
         : '';
   const parsed: T = raw ? JSON.parse(raw) : (null as T);
-  const precise = raw ? parseJsonPreservingLargeInts(raw) : parsed;
+  const precise = raw ? parseJsonPreservingLargeInts<T>(raw) : parsed;
   return { parsed, precise };
 }
 
-function extractResults<T>(payload: ListPayload<T>): T[] {
+function extractResults<T>(payload: ListPayload<T> | null | undefined): T[] {
+  if (!payload) {
+    return [];
+  }
   if (Array.isArray(payload)) {
     return payload;
   }
   if (payload && Array.isArray(payload.results)) {
-    return payload.results;
+    return payload.results.filter((item): item is T => item != null);
   }
   return [];
 }
+
+const normalizeMessage = (approx: MessageResponse, precise?: MessageResponse): Message => {
+  const preciseId = precise?.id ?? approx.id;
+  const preciseThread = precise?.thread ?? approx.thread;
+  return {
+    ...approx,
+    id: preciseId != null ? String(preciseId) : String(approx.id),
+    thread: preciseThread != null ? String(preciseThread) : String(approx.thread),
+  };
+};
 
 export async function getThreads(): Promise<Thread[]> {
   const { parsed, precise } = await requestWithPrecision<ListPayload<Thread>>({
@@ -103,18 +130,25 @@ export async function getThreadMessages(
   if (cursor) {
     params.append('cursor', cursor);
   }
-  const { data } = await apiClient.get<ListPayload<Message>>(
-    `/messages/?${params.toString()}`,
-  );
-  return extractResults(data);
+  const { parsed, precise } = await requestWithPrecision<ListPayload<MessageResponse>>({
+    method: 'GET',
+    url: `/messages/?${params.toString()}`,
+  });
+  const approxMessages = extractResults(parsed);
+  const preciseMessages = extractResults(precise);
+  return approxMessages.map((message, index) => normalizeMessage(message, preciseMessages[index]));
 }
 
 export async function sendMessage(threadId: string | number, text: string): Promise<Message> {
-  const { data } = await apiClient.post<Message>('/messages/', {
-    thread: resolveThreadId(threadId),
-    body: text,
+  const { parsed, precise } = await requestWithPrecision<MessageResponse>({
+    method: 'POST',
+    url: '/messages/',
+    data: {
+      thread: resolveThreadId(threadId),
+      body: text,
+    },
   });
-  return data;
+  return normalizeMessage(parsed, precise);
 }
 
 export async function getOrCreateDirectThread(
@@ -133,6 +167,7 @@ export async function getOrCreateDirectThread(
   rememberThreadFromResponse(parsed, precise);
   return parsed;
 }
+
 export async function getThread(threadId: string | number): Promise<Thread> {
   const { parsed, precise } = await requestWithPrecision<Thread>({
     method: 'GET',
@@ -147,12 +182,11 @@ export async function markThreadRead(threadId: string | number): Promise<void> {
 }
 
 export async function getMessage(messageId: string | number): Promise<Message> {
-  const { parsed, precise } = await requestWithPrecision<Message>({
+  const { parsed, precise } = await requestWithPrecision<MessageResponse>({
     method: 'GET',
     url: `/messages/${messageId}/`,
   });
-  rememberThreadFromResponse(parsed, precise);
-  return parsed;
+  return normalizeMessage(parsed, precise);
 }
 
 export async function deleteMessage(messageId: string | number): Promise<void> {

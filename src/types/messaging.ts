@@ -33,8 +33,8 @@ export interface CreateThreadPayload {
 }
 
 export interface Message {
-  id: number;
-  thread: number;
+  id: string;
+  thread: string;
   sender: User;
   body: string;
   type: string;
@@ -43,7 +43,7 @@ export interface Message {
 }
 
 export interface SendMessagePayload {
-  thread: number;
+  thread: number | string;
   body: string;
   type?: string;
   meta?: Record<string, unknown> | null;

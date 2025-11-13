@@ -3,7 +3,6 @@ import Constants from 'expo-constants';
 const extra = Constants?.expoConfig?.extra ?? {};
 
 const DEFAULT_BACKEND = 'http://192.168.0.104:8000/';
-const DEFAULT_REALTIME = 'ws://192.168.0.104:8001/ws';
 
 const backendUrl =
   typeof extra.backendUrl === 'string' ? extra.backendUrl : DEFAULT_BACKEND;
@@ -12,9 +11,6 @@ const healthEndpoint =
 const resolveRealtimeUrl = () => {
   if (typeof extra.realtimeUrl === 'string') {
     return extra.realtimeUrl;
-  }
-  if (typeof __DEV__ !== 'undefined' && __DEV__) {
-    return DEFAULT_REALTIME;
   }
   try {
     const url = new URL(backendUrl);
