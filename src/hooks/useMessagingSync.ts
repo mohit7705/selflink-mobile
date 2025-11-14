@@ -7,6 +7,14 @@ import { connectRealtime, RealtimePayload } from '@realtime/index';
 import { useAuthStore } from '@store/authStore';
 import { useMessagingStore } from '@store/messagingStore';
 
+const isMessageShape = (value: unknown): value is Message => {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+  const candidate = value as Record<string, unknown>;
+  return 'id' in candidate && 'thread' in candidate && 'body' in candidate;
+};
+
 type MessageEnvelope = RealtimePayload & {
   type?: string;
   message?: Message;
@@ -39,8 +47,6 @@ export function useMessagingSync(enabled: boolean) {
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const realtimeConnectedRef = useRef(false);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
-  const inflightMessages = useRef(new Map<string, Promise<Message | null>>());
-
   useEffect(() => {
     setSessionUserId(currentUserId);
   }, [currentUserId, setSessionUserId]);
@@ -118,42 +124,20 @@ export function useMessagingSync(enabled: boolean) {
     };
   }, [enabled, ensurePolling, pollThreadsAndActiveMessages, stopPolling]);
 
-  const fetchMessageDetails = useCallback((messageId?: number | string) => {
-    if (messageId === null || messageId === undefined) {
-      return Promise.resolve<Message | null>(null);
-    }
-    const key = String(messageId);
-    if (!key) {
-      return Promise.resolve<Message | null>(null);
-    }
-    const existing = inflightMessages.current.get(key);
-    if (existing) {
-      return existing;
-    }
-    const request = messagingApi
-      .getMessage(messageId)
-      .catch((error) => {
-        console.warn('useMessagingSync: failed to fetch message', error);
-        return null;
-      })
-      .finally(() => {
-        inflightMessages.current.delete(key);
-      });
-    inflightMessages.current.set(key, request);
-    return request;
-  }, []);
-
   const normalizeEnvelope = useCallback((payload: MessageEnvelope): MessageEnvelope => {
     if (!payload || typeof payload !== 'object') {
       return payload;
     }
     if (payload.payload && typeof payload.payload === 'object') {
       const nested = payload.payload;
+      const nestedMessage =
+        (nested.message as Message | undefined) ??
+        (isMessageShape(nested) ? (nested as Message) : undefined);
       return {
         ...payload,
         ...nested,
-        message: (nested.message as Message | undefined) ?? payload.message,
-        message_id: (nested.message_id as number | undefined) ?? payload.message_id,
+        message: nestedMessage ?? payload.message,
+        message_id: (nested.message_id as number | string | undefined) ?? payload.message_id,
         thread_id:
           typeof nested.thread_id !== 'undefined'
             ? (nested.thread_id as number | string)
@@ -162,19 +146,24 @@ export function useMessagingSync(enabled: boolean) {
               : payload.thread_id ?? payload.thread,
       };
     }
+    if (!payload.message && isMessageShape(payload)) {
+      return {
+        ...payload,
+        message: payload as Message,
+        thread_id:
+          payload.thread_id ??
+          (typeof (payload as Record<string, unknown>).thread !== 'undefined'
+            ? ((payload as Record<string, unknown>).thread as number | string)
+            : undefined),
+      };
+    }
     return payload;
   }, []);
 
   const handleRealtimeMessage = useCallback(
     async (rawPayload: MessageEnvelope) => {
       const payload = normalizeEnvelope(rawPayload);
-      const directMessage = payload.message;
-      let nextMessage: Message | null = null;
-      if (directMessage?.sender) {
-        nextMessage = directMessage;
-      } else if (payload.message_id !== undefined && payload.message_id !== null) {
-        nextMessage = await fetchMessageDetails(String(payload.message_id));
-      }
+      const nextMessage = payload.message ?? null;
 
       if (!nextMessage) {
         await syncThreads();
@@ -187,7 +176,7 @@ export function useMessagingSync(enabled: boolean) {
 
       appendMessage(nextMessage.thread, nextMessage);
     },
-    [activeThreadId, appendMessage, fetchMessageDetails, normalizeEnvelope, syncThreads],
+    [activeThreadId, appendMessage, normalizeEnvelope, syncThreads],
   );
 
   const handleRealtimePayload = useCallback(

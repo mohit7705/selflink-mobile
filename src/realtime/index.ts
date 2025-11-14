@@ -1,4 +1,5 @@
 import { env } from '@config/env';
+import { parseJsonPreservingLargeInts } from '@utils/json';
 
 type StatusEvent = {
   type: 'status';
@@ -154,7 +155,7 @@ export function connectRealtime(token: string, urlOverride?: string): RealtimeCo
     };
     socket.onmessage = (event) => {
       try {
-        const payload = JSON.parse(event.data);
+        const payload = parseJsonPreservingLargeInts<RealtimePayload>(event.data);
         if (typeof __DEV__ !== 'undefined' && __DEV__) {
           const type = typeof payload === 'object' ? (payload.type as string | undefined) : undefined;
           if (type && (type === 'message' || type === 'message:new')) {

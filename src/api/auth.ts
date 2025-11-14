@@ -1,6 +1,6 @@
-import { apiClient } from './client';
-import { AuthResponse, LoginPayload, RefreshResponse, RegisterPayload } from '@schemas/auth';
 import { User } from '@schemas/user';
+import { AuthResponse, LoginPayload, RefreshResponse, RegisterPayload } from '@schemas/auth';
+import { apiClient } from './client';
 
 export async function login(payload: LoginPayload): Promise<AuthResponse> {
   const { data } = await apiClient.post<AuthResponse>('/auth/login/', payload);
