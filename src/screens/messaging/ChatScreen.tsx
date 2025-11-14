@@ -64,6 +64,24 @@ const mapTypingStatusResponse = (status: TypingStatus): ThreadTypingStatus | nul
   };
 };
 
+const isUnauthorizedError = (error: unknown) => {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+  const message = (error as { message?: string }).message;
+  return typeof message === 'string' && message.includes('(401');
+};
+
+const logTypingError = (label: string, error: unknown) => {
+  if (isUnauthorizedError(error)) {
+    if (typeof __DEV__ !== 'undefined' && __DEV__) {
+      console.debug(`${label} (unauthorized)`, error);
+    }
+    return;
+  }
+  console.warn(label, error);
+};
+
 export function ChatScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<ChatRoute>();
@@ -139,9 +157,7 @@ export function ChatScreen() {
       try {
         await sendTypingSignal(threadId, { is_typing: active });
       } catch (error) {
-        if (__DEV__) {
-          console.warn('ChatScreen: typing signal failed', error);
-        }
+        logTypingError('ChatScreen: typing signal failed', error);
       }
     },
     [threadId],
@@ -190,9 +206,7 @@ export function ChatScreen() {
         setTypingStatus(threadKey, mapTypingStatusResponse(status));
       })
       .catch((error) => {
-        if (__DEV__) {
-          console.warn('ChatScreen: failed to fetch typing status', error);
-        }
+        logTypingError('ChatScreen: failed to fetch typing status', error);
       });
     return () => {
       cancelled = true;

@@ -33,6 +33,24 @@ import { theme } from '@theme';
 
 type MessagesRoute = RouteProp<RootStackParamList, 'Messages'>;
 
+const isUnauthorizedError = (error: unknown) => {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+  const message = (error as { message?: string }).message;
+  return typeof message === 'string' && message.includes('(401');
+};
+
+const logTypingWarning = (label: string, error: unknown) => {
+  if (isUnauthorizedError(error)) {
+    if (typeof __DEV__ !== 'undefined' && __DEV__) {
+      console.debug(`${label} (unauthorized)`, error);
+    }
+    return;
+  }
+  console.warn(label, error);
+};
+
 export function MessagesScreen() {
   const route = useRoute<MessagesRoute>();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -172,9 +190,7 @@ export function MessagesScreen() {
           setTypingStatus(status.typing ? status : null);
         }
       } catch (error) {
-        if (__DEV__) {
-          console.warn('MessagesScreen: typing status error', error);
-        }
+        logTypingWarning('MessagesScreen: typing status error', error);
       }
     }
     pollTyping();
@@ -190,9 +206,7 @@ export function MessagesScreen() {
       try {
         await sendTypingSignal(threadId, { is_typing: active });
       } catch (error) {
-        if (__DEV__) {
-          console.warn('MessagesScreen: typing signal failed', error);
-        }
+        logTypingWarning('MessagesScreen: typing signal failed', error);
       }
     },
     [threadId],
