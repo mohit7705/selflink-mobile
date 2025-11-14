@@ -1,3 +1,5 @@
+import type { Thread } from '@types/messaging';
+import { Ionicons } from '@expo/vector-icons';
 import React, { memo, useMemo } from 'react';
 import {
   Image,
@@ -7,9 +9,6 @@ import {
   View,
   TouchableOpacityProps,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-
-import type { Thread } from '@types/messaging';
 
 type Props = {
   thread: Thread;
@@ -42,7 +41,10 @@ const ThreadListItemComponent: React.FC<Props> = ({
   }, [currentUserId, thread.members]);
 
   const displayName =
-    otherMember?.user?.name || otherMember?.user?.handle || thread.title || 'Unknown user';
+    otherMember?.user?.name ||
+    otherMember?.user?.handle ||
+    thread.title ||
+    'Unknown user';
   const avatarUrl = otherMember?.user?.photo || '';
   const lastMessage = thread.last_message?.body || 'No messages yet';
   const timeLabel = formatTime(thread.updated_at || thread.created_at);

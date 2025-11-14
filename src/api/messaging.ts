@@ -76,7 +76,6 @@ export const mapThreadIdToClient = (
   const key = String(threadId);
   return preciseToApproxThreadIdMap.get(key) ?? key;
 };
-
 const normalizeEntityId = <T extends { id?: string | number | null }>(
   entity: T | null | undefined,
 ): T | null | undefined => {

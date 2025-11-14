@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import {
   RouteProp,
   useFocusEffect,
@@ -12,6 +13,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import type { ListRenderItem } from 'react-native';
 import {
   ActivityIndicator,
   Alert,
@@ -22,8 +24,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import type { ListRenderItem } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 
 import { ChatBubble } from '@components/messaging/ChatBubble';
 import { navigateToUserProfile } from '@navigation/helpers';

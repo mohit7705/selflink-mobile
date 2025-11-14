@@ -91,10 +91,7 @@ export function ThreadsScreen() {
   );
 
   const keyExtractor = useCallback((item: Thread) => String(item.id), []);
-  const renderSeparator = useCallback(
-    () => <View style={styles.separator} />,
-    [],
-  );
+  const renderSeparator = useCallback(() => <View style={styles.separator} />, []);
 
   if (isLoading && threads.length === 0) {
     return (

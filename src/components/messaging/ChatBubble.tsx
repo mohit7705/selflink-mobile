@@ -1,7 +1,6 @@
+import type { Message } from '@types/messaging';
 import React, { memo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-
-import type { Message } from '@types/messaging';
 
 type Props = {
   message: Message;
@@ -21,7 +20,9 @@ const ChatBubbleComponent: React.FC<Props> = ({
   const containerStyle = isOwn
     ? [styles.bubbleContainer, styles.bubbleRight]
     : [styles.bubbleContainer, styles.bubbleLeft];
-  const bubbleStyle = isOwn ? [styles.bubble, styles.bubbleOwn] : [styles.bubble, styles.bubbleOther];
+  const bubbleStyle = isOwn
+    ? [styles.bubble, styles.bubbleOwn]
+    : [styles.bubble, styles.bubbleOther];
 
   const time = new Date(message.created_at).toLocaleTimeString([], {
     hour: '2-digit',
