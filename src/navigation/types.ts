@@ -26,7 +26,7 @@ export type FeedStackParamList = {
 
 export type MessagesStackParamList = {
   Threads: undefined;
-  Chat: { threadId: number; otherUserId?: number };
+  Chat: { threadId: string; otherUserId?: number };
 };
 
 export type ProfileStackParamList = {

@@ -100,7 +100,7 @@ export function UserProfileScreen() {
   }, [isOwnProfile, profile]);
 
   const openChatScreen = useCallback(
-    (threadId: number, otherUserId?: number) => {
+    (threadId: string, otherUserId?: number) => {
       navigation.navigate(
         'Messages' as never,
         {

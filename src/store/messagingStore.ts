@@ -69,7 +69,7 @@ const mergeMessagesForThread = (
   };
 };
 
-const normalizeThreadId = (threadId: string | number | undefined) => {
+const normalizeThreadId = (threadId: string | number | null | undefined) => {
   if (threadId === null || threadId === undefined) {
     return '';
   }
@@ -181,13 +181,13 @@ export type MessagingState = typeof initialState & {
   syncThreads: () => Promise<void>;
   setThreads: (threads: Thread[]) => void;
   mergeThread: (thread: Thread) => void;
-  loadThreadMessages: (threadId: string | number) => Promise<void>;
-  setMessagesForThread: (threadId: string | number, messages: Message[]) => void;
-  sendMessage: (threadId: string | number, text: string) => Promise<void>;
-  appendMessage: (threadId: string | number, message: Message) => void;
-  removeMessage: (threadId: string | number, messageId: string | number) => Promise<void>;
-  removeThread: (threadId: string | number) => Promise<void>;
-  markThreadRead: (threadId: string | number, options?: { sync?: boolean }) => Promise<void>;
+  loadThreadMessages: (threadId: string) => Promise<void>;
+  setMessagesForThread: (threadId: string, messages: Message[]) => void;
+  sendMessage: (threadId: string, text: string) => Promise<void>;
+  appendMessage: (threadId: string, message: Message) => void;
+  removeMessage: (threadId: string, messageId: string) => Promise<void>;
+  removeThread: (threadId: string) => Promise<void>;
+  markThreadRead: (threadId: string, options?: { sync?: boolean }) => Promise<void>;
   setActiveThread: (threadId: string | null) => void;
   setSessionUserId: (userId: number | null) => void;
   recomputeTotalUnread: () => void;
@@ -373,7 +373,7 @@ export const useMessagingStore = create<MessagingState>((set, get) => ({
     }
     try {
       const message = await messagingApi.sendMessage(threadId, text.trim());
-      get().appendMessage(threadId, message);
+      get().appendMessage(message.thread, message);
     } catch (error) {
       const detail = error instanceof Error ? error.message : 'Unable to send message.';
       set({ error: detail });
@@ -381,12 +381,25 @@ export const useMessagingStore = create<MessagingState>((set, get) => ({
     }
   },
   appendMessage(threadId, message) {
-    const key = normalizeThreadId(threadId ?? message.thread);
+    const messageThreadKey = normalizeThreadId(message?.thread);
+    const fallbackKey = normalizeThreadId(threadId);
+    const key = messageThreadKey || fallbackKey;
     if (!key) {
       return;
     }
+    const normalizedMessage =
+      message.thread === key && typeof message.id === 'string'
+        ? message
+        : {
+            ...message,
+            id: String(message.id),
+            thread: key,
+          };
     if (typeof __DEV__ !== 'undefined' && __DEV__) {
-      console.debug('messagingStore: appendMessage', { threadId: key, messageId: message.id });
+      console.debug('messagingStore: appendMessage', {
+        threadId: key,
+        messageId: normalizedMessage.id,
+      });
     }
     const state = get();
     const threadFromState = state.threads.find((thread) => String(thread.id) === key);
@@ -399,24 +412,42 @@ export const useMessagingStore = create<MessagingState>((set, get) => ({
       }
       return;
     }
-    const existingMessages = state.messagesByThread[key];
-    const alreadyExists = existingMessages?.some(
-      (item) => String(item.id) === String(message.id),
+    const existingMessages = state.messagesByThread[key] ?? [];
+    const duplicateIndex = existingMessages.findIndex(
+      (item) => String(item.id) === normalizedMessage.id,
     );
     let messagesByThread = state.messagesByThread;
-    if (!alreadyExists) {
-      const nextMessages = sortMessagesChronologically([...(existingMessages ?? []), message]);
+    let insertedNew = false;
+    if (duplicateIndex === -1) {
+      const nextMessages = sortMessagesChronologically([...existingMessages, normalizedMessage]);
       messagesByThread = {
         ...messagesByThread,
         [key]: nextMessages,
       };
+      insertedNew = true;
+    } else {
+      const currentMessage = existingMessages[duplicateIndex];
+      const needsReplacement =
+        currentMessage.body !== normalizedMessage.body ||
+        currentMessage.created_at !== normalizedMessage.created_at ||
+        currentMessage.meta !== normalizedMessage.meta ||
+        currentMessage.type !== normalizedMessage.type ||
+        currentMessage.sender?.id !== normalizedMessage.sender?.id;
+      if (needsReplacement) {
+        const nextMessages = [...existingMessages];
+        nextMessages[duplicateIndex] = normalizedMessage;
+        messagesByThread = {
+          ...messagesByThread,
+          [key]: nextMessages,
+        };
+      }
     }
 
     const sessionUserId = state.sessionUserId;
     const isOwnMessage =
       sessionUserId != null &&
-      message.sender?.id != null &&
-      String(message.sender.id) === String(sessionUserId);
+      normalizedMessage.sender?.id != null &&
+      String(normalizedMessage.sender.id) === String(sessionUserId);
     const currentUnread = state.unreadByThread[key] ?? 0;
     let unreadByThread = state.unreadByThread;
     let unreadChanged = false;
@@ -428,7 +459,7 @@ export const useMessagingStore = create<MessagingState>((set, get) => ({
         unreadByThread = { ...unreadByThread, [key]: 0 };
         unreadChanged = true;
       }
-    } else if (!alreadyExists) {
+    } else if (insertedNew) {
       nextUnread = currentUnread + 1;
       unreadByThread = { ...unreadByThread, [key]: nextUnread };
       unreadChanged = true;
@@ -439,19 +470,19 @@ export const useMessagingStore = create<MessagingState>((set, get) => ({
     if (targetIndex !== -1) {
       const thread = threads[targetIndex];
       const needsUpdate =
-        thread.last_message?.body !== message.body ||
-        thread.last_message?.created_at !== message.created_at ||
-        thread.updated_at !== message.created_at ||
+        thread.last_message?.body !== normalizedMessage.body ||
+        thread.last_message?.created_at !== normalizedMessage.created_at ||
+        thread.updated_at !== normalizedMessage.created_at ||
         (thread.unread_count ?? 0) !== nextUnread;
       if (needsUpdate) {
         const nextThreads = [...threads];
         nextThreads[targetIndex] = {
           ...thread,
           last_message: {
-            body: message.body,
-            created_at: message.created_at,
+            body: normalizedMessage.body,
+            created_at: normalizedMessage.created_at,
           },
-          updated_at: message.created_at,
+          updated_at: normalizedMessage.created_at,
           unread_count: nextUnread,
         };
         threads = sortThreadsByUpdatedAt(nextThreads);

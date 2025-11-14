@@ -20,6 +20,10 @@ type MessageResponse = Omit<Message, 'id' | 'thread'> & {
   thread: string | number;
 };
 
+type ThreadResponse = Omit<Thread, 'id'> & {
+  id: string | number;
+};
+
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
 
@@ -57,7 +61,7 @@ const rememberThreadFromResponse = (approx: unknown, precise: unknown) => {
   }
 };
 
-const resolveThreadId = (threadId: string | number): string => {
+const resolveThreadId = (threadId: string): string => {
   const key = String(threadId);
   return approxToPreciseThreadIdMap.get(key) ?? key;
 };
@@ -121,13 +125,25 @@ const normalizeMessage = (approx: MessageResponse, precise?: MessageResponse): M
   };
 };
 
+const normalizeThread = (approx: ThreadResponse, precise?: ThreadResponse): Thread => {
+  const resolvedId = precise?.id ?? approx.id;
+  return {
+    ...approx,
+    id: resolvedId != null ? String(resolvedId) : String(approx.id),
+  };
+};
+
 export async function getThreads(): Promise<Thread[]> {
   const { parsed, precise } = await requestWithPrecision<ListPayload<Thread>>({
     method: 'GET',
     url: '/threads/',
   });
   rememberThreadFromResponse(parsed, precise);
-  return extractResults(parsed);
+  const approxThreads = extractResults(parsed);
+  const preciseThreads = extractResults(precise);
+  return approxThreads.map((thread, index) =>
+    normalizeThread(thread as ThreadResponse, preciseThreads[index] as ThreadResponse | undefined),
+  );
 }
 
 export async function createThread(payload: CreateThreadPayload): Promise<Thread> {
@@ -137,11 +153,11 @@ export async function createThread(payload: CreateThreadPayload): Promise<Thread
     data: payload,
   });
   rememberThreadFromResponse(parsed, precise);
-  return parsed;
+  return normalizeThread(parsed as ThreadResponse, precise as ThreadResponse | undefined);
 }
 
 export async function getThreadMessages(
-  threadId: string | number,
+  threadId: string,
   cursor?: string,
 ): Promise<Message[]> {
   const params = new URLSearchParams({ thread: resolveThreadId(threadId) });
@@ -157,7 +173,7 @@ export async function getThreadMessages(
   return approxMessages.map((message, index) => normalizeMessage(message, preciseMessages[index]));
 }
 
-export async function sendMessage(threadId: string | number, text: string): Promise<Message> {
+export async function sendMessage(threadId: string, text: string): Promise<Message> {
   const { parsed, precise } = await requestWithPrecision<MessageResponse>({
     method: 'POST',
     url: '/messages/',
@@ -183,23 +199,23 @@ export async function getOrCreateDirectThread(
     data: payload,
   });
   rememberThreadFromResponse(parsed, precise);
-  return parsed;
+  return normalizeThread(parsed as ThreadResponse, precise as ThreadResponse | undefined);
 }
 
-export async function getThread(threadId: string | number): Promise<Thread> {
+export async function getThread(threadId: string): Promise<Thread> {
   const { parsed, precise } = await requestWithPrecision<Thread>({
     method: 'GET',
     url: `/threads/${resolveThreadId(threadId)}/`,
   });
   rememberThreadFromResponse(parsed, precise);
-  return parsed;
+  return normalizeThread(parsed as ThreadResponse, precise as ThreadResponse | undefined);
 }
 
-export async function markThreadRead(threadId: string | number): Promise<void> {
+export async function markThreadRead(threadId: string): Promise<void> {
   await apiClient.post(`/threads/${resolveThreadId(threadId)}/read/`, {});
 }
 
-export async function getMessage(messageId: string | number): Promise<Message> {
+export async function getMessage(messageId: string): Promise<Message> {
   const { parsed, precise } = await requestWithPrecision<MessageResponse>({
     method: 'GET',
     url: `/messages/${messageId}/`,
@@ -207,10 +223,10 @@ export async function getMessage(messageId: string | number): Promise<Message> {
   return normalizeMessage(parsed, precise);
 }
 
-export async function deleteMessage(messageId: string | number): Promise<void> {
+export async function deleteMessage(messageId: string): Promise<void> {
   await apiClient.delete(`/messages/${messageId}/`);
 }
 
-export async function deleteThread(threadId: string | number): Promise<void> {
+export async function deleteThread(threadId: string): Promise<void> {
   await apiClient.post(`/threads/${resolveThreadId(threadId)}/leave/`, {});
 }

@@ -18,7 +18,7 @@ import type { Message } from '@schemas/messaging';
 import { theme } from '@theme';
 
 interface RouteParams {
-  threadId: number;
+  threadId: string;
   otherUserId?: number;
 }
 

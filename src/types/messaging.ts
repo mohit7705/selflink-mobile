@@ -14,7 +14,7 @@ export interface ThreadParticipantPreview {
 }
 
 export interface Thread {
-  id: number;
+  id: string;
   is_group: boolean;
   title: string | null;
   members: ThreadMember[];
@@ -43,7 +43,7 @@ export interface Message {
 }
 
 export interface SendMessagePayload {
-  thread: number | string;
+  thread: string;
   body: string;
   type?: string;
   meta?: Record<string, unknown> | null;

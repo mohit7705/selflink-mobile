@@ -160,11 +160,36 @@ export function useMessagingSync(enabled: boolean) {
     return payload;
   }, []);
 
-  const coerceThreadIdForClient = useCallback((threadId: string | number | null | undefined) => {
-    if (threadId === null || threadId === undefined) {
-      return null;
+  const extractThreadId = useCallback((payload: MessageEnvelope, message: Message | null) => {
+    const candidates: Array<string | number | null | undefined> = [
+      message?.thread,
+      (payload.payload?.message as Record<string, unknown> | undefined)?.thread as
+        | string
+        | number
+        | undefined,
+      payload.thread,
+      payload.thread_id,
+      payload.payload?.thread,
+      payload.payload?.thread_id,
+    ];
+    for (const candidate of candidates) {
+      if (candidate !== null && candidate !== undefined) {
+        return String(candidate);
+      }
     }
-    return messagingApi.mapThreadIdToClient(threadId) ?? String(threadId);
+    return null;
+  }, []);
+
+  const normalizeIncomingMessage = useCallback((incoming: Message, threadId: string): Message => {
+    const normalizedId = String((incoming as Message & { id: string | number }).id);
+    if (incoming.thread === threadId && incoming.id === normalizedId) {
+      return incoming;
+    }
+    return {
+      ...incoming,
+      id: normalizedId,
+      thread: threadId,
+    };
   }, []);
 
   const handleRealtimeMessage = useCallback(
@@ -181,21 +206,26 @@ export function useMessagingSync(enabled: boolean) {
         return;
       }
 
-      const threadHint =
-        nextMessage.thread ??
-        payload.thread_id ??
-        payload.thread ??
-        payload.payload?.thread_id ??
-        payload.payload?.thread;
-      const resolvedThreadId = coerceThreadIdForClient(threadHint) ?? nextMessage.thread;
-      const messageForStore =
-        resolvedThreadId && nextMessage.thread !== resolvedThreadId
-          ? { ...nextMessage, thread: resolvedThreadId }
-          : nextMessage;
-
-      appendMessage(resolvedThreadId ?? nextMessage.thread, messageForStore);
+      const resolvedThreadId = extractThreadId(payload, nextMessage);
+      if (!resolvedThreadId) {
+        if (typeof __DEV__ !== 'undefined' && __DEV__) {
+          console.warn('messagingSync: unable to resolve thread for message', {
+            payload,
+          });
+        }
+        return;
+      }
+      const normalizedThreadId = String(resolvedThreadId);
+      const messageForStore = normalizeIncomingMessage(nextMessage, normalizedThreadId);
+      if (typeof __DEV__ !== 'undefined' && __DEV__) {
+        console.debug('messagingSync: message received', {
+          thread: normalizedThreadId,
+          messageId: messageForStore.id,
+        });
+      }
+      appendMessage(normalizedThreadId, messageForStore);
     },
-    [activeThreadId, appendMessage, coerceThreadIdForClient, normalizeEnvelope, syncThreads],
+    [activeThreadId, appendMessage, extractThreadId, normalizeEnvelope, normalizeIncomingMessage, syncThreads],
   );
 
   const handleRealtimePayload = useCallback(
