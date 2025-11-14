@@ -1,11 +1,16 @@
 import type { Message } from '@schemas/messaging';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import React, { memo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 type Props = {
   message: Message;
   isOwn: boolean;
+  isFirstInGroup: boolean;
+  isLastInGroup: boolean;
   showTimestamp?: boolean;
+  status?: 'sent' | 'delivered' | 'read';
   onLongPress?: (message: Message) => void;
   disableActions?: boolean;
 };
@@ -13,78 +18,149 @@ type Props = {
 const ChatBubbleComponent: React.FC<Props> = ({
   message,
   isOwn,
-  showTimestamp = true,
+  isFirstInGroup,
+  isLastInGroup,
+  showTimestamp = false,
+  status,
   onLongPress,
   disableActions,
 }) => {
-  const containerStyle = isOwn
-    ? [styles.bubbleContainer, styles.bubbleRight]
-    : [styles.bubbleContainer, styles.bubbleLeft];
-  const bubbleStyle = isOwn
-    ? [styles.bubble, styles.bubbleOwn]
-    : [styles.bubble, styles.bubbleOther];
+  const radius = getRadius(isOwn, isFirstInGroup, isLastInGroup);
 
   const time = new Date(message.created_at).toLocaleTimeString([], {
     hour: '2-digit',
     minute: '2-digit',
   });
 
+  const content = (
+    <View style={styles.bubbleContent}>
+      <Text style={isOwn ? styles.textOwn : styles.textOther}>{message.body}</Text>
+      <View style={styles.metaRow}>
+        {showTimestamp ? <Text style={styles.timestamp}>{time}</Text> : null}
+        {isOwn && status ? (
+          <Ionicons
+            name={status === 'read' ? 'checkmark-done' : 'checkmark'}
+            size={14}
+            color={status === 'read' ? '#a7f3d0' : '#bae6fd'}
+            style={styles.statusIcon}
+          />
+        ) : null}
+      </View>
+    </View>
+  );
+
   return (
-    <View style={containerStyle}>
+    <View
+      style={[
+        styles.container,
+        isOwn ? styles.containerRight : styles.containerLeft,
+      ]}
+    >
       <TouchableOpacity
         activeOpacity={0.85}
-        style={bubbleStyle}
         delayLongPress={250}
-        onLongPress={() => {
-          if (!disableActions) {
-            onLongPress?.(message);
-          }
-        }}
+        onLongPress={
+          onLongPress && !disableActions ? () => onLongPress(message) : undefined
+        }
       >
-        <Text style={isOwn ? styles.textOwn : styles.textOther}>{message.body}</Text>
+        {isOwn ? (
+          <LinearGradient
+            colors={['#0f766e', '#22c55e']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[styles.gradientBubble, radius]}
+          >
+            {content}
+          </LinearGradient>
+        ) : (
+          <View style={[styles.otherBubble, radius]}>{content}</View>
+        )}
       </TouchableOpacity>
-      {showTimestamp ? <Text style={styles.timestamp}>{time}</Text> : null}
     </View>
   );
 };
 
+const getRadius = (isOwn: boolean, isFirst: boolean, isLast: boolean) => {
+  const base = {
+    borderRadius: 18,
+    borderBottomRightRadius: isOwn ? 4 : 18,
+    borderBottomLeftRadius: isOwn ? 18 : 4,
+  };
+
+  if (!isFirst && !isLast) {
+    return {
+      ...base,
+      borderTopLeftRadius: isOwn ? 18 : 6,
+      borderTopRightRadius: isOwn ? 6 : 18,
+      borderBottomLeftRadius: isOwn ? 18 : 6,
+      borderBottomRightRadius: isOwn ? 6 : 18,
+    };
+  }
+
+  if (!isFirst && isLast) {
+    return {
+      ...base,
+      borderTopLeftRadius: isOwn ? 18 : 6,
+      borderTopRightRadius: isOwn ? 6 : 18,
+    };
+  }
+
+  if (isFirst && !isLast) {
+    return {
+      ...base,
+      borderBottomLeftRadius: isOwn ? 18 : 6,
+      borderBottomRightRadius: isOwn ? 6 : 18,
+    };
+  }
+
+  return base;
+};
+
 const styles = StyleSheet.create({
-  bubbleContainer: {
-    marginVertical: 2,
+  container: {
     paddingHorizontal: 12,
+    marginVertical: 2,
   },
-  bubbleLeft: {
+  containerLeft: {
     alignItems: 'flex-start',
   },
-  bubbleRight: {
+  containerRight: {
     alignItems: 'flex-end',
   },
-  bubble: {
+  gradientBubble: {
     maxWidth: '80%',
     paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: 18,
   },
-  bubbleOwn: {
-    backgroundColor: '#0f766e',
-    borderBottomRightRadius: 4,
-  },
-  bubbleOther: {
+  otherBubble: {
+    maxWidth: '80%',
     backgroundColor: '#E5E7EB',
-    borderBottomLeftRadius: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  bubbleContent: {
+    flexShrink: 1,
   },
   textOwn: {
-    color: '#ffffff',
+    color: '#F9FAFB',
     fontSize: 15,
   },
   textOther: {
     color: '#111827',
     fontSize: 15,
   },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-end',
+    marginTop: 2,
+  },
   timestamp: {
     fontSize: 10,
-    color: '#9CA3AF',
-    marginTop: 2,
+    color: '#d1d5db',
+  },
+  statusIcon: {
+    marginLeft: 4,
   },
 });
 

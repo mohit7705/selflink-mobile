@@ -26,6 +26,7 @@ import {
 } from 'react-native';
 
 import { ChatBubble } from '@components/messaging/ChatBubble';
+import TypingIndicator from '@components/messaging/TypingIndicator';
 import { navigateToUserProfile } from '@navigation/helpers';
 import type { Message } from '@schemas/messaging';
 import {
@@ -49,9 +50,6 @@ interface RouteParams {
 type ChatRoute = RouteProp<Record<'Chat', RouteParams>, 'Chat'>;
 
 const EMPTY_MESSAGES: Message[] = [];
-type ChatListItem =
-  | { kind: 'separator'; id: string; label: string }
-  | { kind: 'message'; id: string; message: Message; previousSenderId?: string | number };
 
 const mapTypingStatusResponse = (status: TypingStatus): ThreadTypingStatus | null => {
   if (!status?.typing) {
@@ -262,29 +260,6 @@ export function ChatScreen() {
     }
   }, [input, isSending, notifyTyping, sendMessage, threadId]);
 
-  const threadMessages = messages;
-  const chatItems = useMemo<ChatListItem[]>(() => {
-    const items: ChatListItem[] = [];
-    let lastLabel: string | null = null;
-    threadMessages.forEach((message, index) => {
-      const label = formatDateLabel(message.created_at);
-      if (label !== lastLabel) {
-        items.push({
-          kind: 'separator',
-          id: `sep-${label}-${index}-${message.id}`,
-          label,
-        });
-        lastLabel = label;
-      }
-      items.push({
-        kind: 'message',
-        id: String(message.id),
-        message,
-        previousSenderId: threadMessages[index - 1]?.sender.id,
-      });
-    });
-    return items;
-  }, [threadMessages]);
   const typingIndicatorVisible =
     Boolean(typingStatus?.typing) &&
     (!typingStatus?.userId || typingStatus.userId !== currentUserKey);
@@ -317,30 +292,45 @@ export function ChatScreen() {
     [pendingDeleteId, removeMessage, threadId],
   );
 
-  const renderItem = useCallback<ListRenderItem<ChatListItem>>(
-    ({ item }) => {
-      if (item.kind === 'separator') {
-        return <DateSeparator label={item.label} />;
-      }
-      const senderId = item.message.sender?.id;
+  const renderMessage = useCallback<ListRenderItem<Message>>(
+    ({ item, index }) => {
+      const senderId = item.sender?.id != null ? String(item.sender.id) : null;
       const isOwn =
         senderId != null && currentUserKey != null
-          ? String(senderId) === currentUserKey
+          ? senderId === currentUserKey
           : senderId === currentUserId;
+      const previous = messages[index - 1];
+      const next = messages[index + 1];
+      const currentSenderKey = senderId ?? (item.sender?.id != null ? String(item.sender.id) : null);
+      const prevSenderKey =
+        previous?.sender?.id != null ? String(previous.sender.id) : null;
+      const nextSenderKey = next?.sender?.id != null ? String(next.sender.id) : null;
+      const sameSenderAsPrev =
+        prevSenderKey != null && currentSenderKey != null
+          ? prevSenderKey === currentSenderKey
+          : prevSenderKey === currentSenderKey;
+      const sameSenderAsNext =
+        nextSenderKey != null && currentSenderKey != null
+          ? nextSenderKey === currentSenderKey
+          : nextSenderKey === currentSenderKey;
+
       return (
         <ChatBubble
-          message={item.message}
+          message={item}
           isOwn={Boolean(isOwn)}
-          showTimestamp
+          isFirstInGroup={!sameSenderAsNext}
+          isLastInGroup={!sameSenderAsPrev}
+          showTimestamp={!sameSenderAsPrev}
+          status={isOwn ? 'read' : undefined}
           onLongPress={confirmDeleteMessage}
           disableActions={Boolean(pendingDeleteId)}
         />
       );
     },
-    [confirmDeleteMessage, currentUserId, currentUserKey, pendingDeleteId],
+    [confirmDeleteMessage, currentUserId, currentUserKey, messages, pendingDeleteId],
   );
 
-  if (isLoading && threadMessages.length === 0) {
+  if (isLoading && messages.length === 0) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator />
@@ -351,17 +341,19 @@ export function ChatScreen() {
   return (
     <View style={styles.container}>
       <FlatList
-        data={chatItems}
-        keyExtractor={(item) => item.id}
-        renderItem={renderItem}
+        data={messages}
+        keyExtractor={(item) => String(item.id)}
+        renderItem={renderMessage}
         contentContainerStyle={styles.listContent}
         inverted
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         ListFooterComponent={<View style={styles.listFooter} />}
       />
-      {typingIndicatorVisible && typingStatus ? (
-        <TypingIndicator status={typingStatus} />
+      {typingIndicatorVisible ? (
+        <View style={styles.typingWrapper}>
+          <TypingIndicator />
+        </View>
       ) : null}
       <View style={styles.inputBar}>
         <TextInput
@@ -398,57 +390,14 @@ export function ChatScreen() {
   );
 }
 
-const formatDateLabel = (dateString: string) => {
-  const target = new Date(dateString);
-  const today = new Date();
-  const yesterday = new Date();
-  yesterday.setDate(today.getDate() - 1);
-  const isSameDay = (a: Date, b: Date) =>
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate();
-  if (isSameDay(target, today)) {
-    return 'Today';
-  }
-  if (isSameDay(target, yesterday)) {
-    return 'Yesterday';
-  }
-  return target.toLocaleDateString(undefined, {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-  });
-};
-
-const DateSeparator = ({ label }: { label: string }) => (
-  <View style={styles.dateSeparator}>
-    <View style={styles.dateSeparatorLine} />
-    <Text style={styles.dateSeparatorLabel}>{label}</Text>
-    <View style={styles.dateSeparatorLine} />
-  </View>
-);
-
-const TypingIndicator = ({ status }: { status: ThreadTypingStatus }) => {
-  const label = status.userName || status.userHandle || 'Someone';
-  return (
-    <View style={styles.typingIndicator}>
-      <View style={styles.typingDots}>
-        <View style={styles.typingDot} />
-        <View style={styles.typingDot} />
-        <View style={styles.typingDot} />
-      </View>
-      <Text style={styles.typingText}>{`${label} is typing…`}</Text>
-    </View>
-  );
-};
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F3F4F6',
   },
   listContent: {
-    paddingVertical: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
   },
   listFooter: {
     height: 32,
@@ -462,43 +411,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  dateSeparator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.sm,
-    marginVertical: theme.spacing.md,
-    paddingHorizontal: theme.spacing.md,
-  },
-  dateSeparatorLine: {
-    flex: 1,
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: theme.palette.platinum,
-  },
-  dateSeparatorLabel: {
-    ...theme.typography.caption,
-    color: theme.palette.graphite,
-  },
-  typingIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.sm,
-    paddingHorizontal: theme.spacing.lg,
-    paddingBottom: theme.spacing.xs,
-  },
-  typingDots: {
-    flexDirection: 'row',
-    gap: 4,
-  },
-  typingDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: theme.palette.graphite,
-    opacity: 0.4,
-  },
-  typingText: {
-    ...theme.typography.caption,
-    color: theme.palette.graphite,
+  typingWrapper: {
+    paddingHorizontal: 12,
+    paddingBottom: 4,
   },
   inputBar: {
     flexDirection: 'row',

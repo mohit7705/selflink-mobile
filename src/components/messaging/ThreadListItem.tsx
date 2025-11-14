@@ -3,11 +3,11 @@ import type { Thread } from '@schemas/messaging';
 import React, { memo, useMemo } from 'react';
 import {
   Image,
+  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
-  TouchableOpacityProps,
 } from 'react-native';
 
 type Props = {
@@ -40,59 +40,57 @@ const ThreadListItemComponent: React.FC<Props> = ({
     );
   }, [currentUserId, thread.members]);
 
-  const displayName =
-    otherMember?.user?.name ||
-    otherMember?.user?.handle ||
-    thread.title ||
-    'Unknown user';
-  const avatarUrl = otherMember?.user?.photo || '';
+  const user = otherMember?.user;
+  const displayName = user?.name || user?.handle || thread.title || 'Unknown user';
+  const avatarUrl = user?.photo || '';
+  const isOnline = Boolean(user?.flags?.online);
   const lastMessage = thread.last_message?.body || 'No messages yet';
   const timeLabel = formatTime(thread.updated_at || thread.created_at);
 
-  const touchableProps: TouchableOpacityProps = {};
-  if (onLongPress) {
-    touchableProps.onLongPress = () => onLongPress(thread);
-    touchableProps.delayLongPress = 250;
-  }
-
   return (
     <TouchableOpacity
-      style={styles.container}
+      style={styles.wrapper}
       onPress={() => onPress(thread)}
+      onLongPress={onLongPress ? () => onLongPress(thread) : undefined}
+      delayLongPress={onLongPress ? 250 : undefined}
       activeOpacity={0.85}
-      {...touchableProps}
     >
-      <View style={styles.avatarContainer}>
-        {avatarUrl ? (
-          <Image source={{ uri: avatarUrl }} style={styles.avatar} />
-        ) : (
-          <View style={styles.avatarFallback}>
-            <Ionicons name="person" size={20} color="#0F172A" />
-          </View>
-        )}
-      </View>
-
-      <View style={styles.content}>
-        <View style={styles.topRow}>
-          <Text style={[styles.name, hasUnread && styles.nameUnread]} numberOfLines={1}>
-            {displayName}
-          </Text>
-          <Text style={styles.time}>{timeLabel}</Text>
-        </View>
-
-        <View style={styles.bottomRow}>
-          <Text
-            style={[styles.preview, hasUnread && styles.previewUnread]}
-            numberOfLines={1}
-          >
-            {lastMessage}
-          </Text>
-
-          {hasUnread ? (
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{unread > 99 ? '99+' : unread}</Text>
+      <View style={styles.card}>
+        <View style={styles.avatarContainer}>
+          {avatarUrl ? (
+            <Image source={{ uri: avatarUrl }} style={styles.avatar} />
+          ) : (
+            <View style={styles.avatarFallback}>
+              <Ionicons name="person" size={20} color="#1f2937" />
             </View>
-          ) : null}
+          )}
+          <View
+            style={[
+              styles.statusDot,
+              isOnline ? styles.statusOnline : styles.statusOffline,
+            ]}
+          />
+        </View>
+        <View style={styles.content}>
+          <View style={styles.topRow}>
+            <Text style={[styles.name, hasUnread && styles.nameUnread]} numberOfLines={1}>
+              {displayName}
+            </Text>
+            <Text style={styles.time}>{timeLabel}</Text>
+          </View>
+          <View style={styles.bottomRow}>
+            <Text
+              style={[styles.preview, hasUnread && styles.previewUnread]}
+              numberOfLines={1}
+            >
+              {lastMessage}
+            </Text>
+            {hasUnread ? (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{unread > 99 ? '99+' : unread}</Text>
+              </View>
+            ) : null}
+          </View>
         </View>
       </View>
     </TouchableOpacity>
@@ -117,15 +115,29 @@ function formatTime(iso?: string | null): string {
 }
 
 const styles = StyleSheet.create({
-  container: {
+  wrapper: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+  },
+  card: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 16,
     backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    ...(Platform.OS === 'ios'
+      ? {
+          shadowColor: '#000',
+          shadowOpacity: 0.06,
+          shadowRadius: 8,
+          shadowOffset: { width: 0, height: 3 },
+        }
+      : { elevation: 2 }),
   },
   avatarContainer: {
     marginRight: 12,
+    position: 'relative',
   },
   avatar: {
     width: 44,
@@ -140,6 +152,22 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#E2E8F0',
   },
+  statusDot: {
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    borderWidth: 2,
+    borderColor: '#ffffff',
+  },
+  statusOnline: {
+    backgroundColor: '#22c55e',
+  },
+  statusOffline: {
+    backgroundColor: '#9CA3AF',
+  },
   content: {
     flex: 1,
   },
@@ -149,7 +177,7 @@ const styles = StyleSheet.create({
   },
   name: {
     flex: 1,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     color: '#0F172A',
   },
@@ -158,8 +186,8 @@ const styles = StyleSheet.create({
   },
   time: {
     marginLeft: 8,
-    fontSize: 12,
-    color: '#64748B',
+    fontSize: 11,
+    color: '#9CA3AF',
   },
   bottomRow: {
     marginTop: 2,
@@ -168,11 +196,11 @@ const styles = StyleSheet.create({
   },
   preview: {
     flex: 1,
-    fontSize: 14,
-    color: '#64748B',
+    fontSize: 13,
+    color: '#6B7280',
   },
   previewUnread: {
-    color: '#0F172A',
+    color: '#111827',
     fontWeight: '500',
   },
   badge: {

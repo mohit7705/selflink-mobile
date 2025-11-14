@@ -109,6 +109,17 @@ export function ThreadsScreen() {
     );
   }
 
+  if (!isLoading && threads.length === 0) {
+    return (
+      <View style={styles.emptyContainer}>
+        <Text style={styles.emptyTitle}>No messages yet</Text>
+        <Text style={styles.emptySubtitle}>
+          Start a conversation by visiting someone’s profile and tapping “Message”.
+        </Text>
+      </View>
+    );
+  }
+
   return (
     <FlatList
       style={styles.list}
@@ -116,21 +127,9 @@ export function ThreadsScreen() {
       keyExtractor={keyExtractor}
       renderItem={renderThread}
       ItemSeparatorComponent={renderSeparator}
-      contentContainerStyle={
-        threads.length === 0 ? styles.emptyContent : styles.listContent
-      }
+      contentContainerStyle={styles.listContent}
       refreshing={isLoading && threads.length > 0}
       onRefresh={handleRefresh}
-      ListEmptyComponent={
-        !isLoading ? (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyTitle}>No conversations yet.</Text>
-            <Text style={styles.emptySubtitle}>
-              Start a chat from someone’s profile to see it here.
-            </Text>
-          </View>
-        ) : null
-      }
     />
   );
 }
@@ -142,21 +141,18 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingVertical: 8,
-    backgroundColor: '#FFFFFF',
-  },
-  emptyContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    paddingVertical: 32,
   },
   separator: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: '#E2E8F0',
   },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  emptyState: {
+  emptyContainer: {
+    flex: 1,
     alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: 32,
+    backgroundColor: '#F8FAFC',
   },
   emptyTitle: {
     fontSize: 18,
@@ -167,5 +163,6 @@ const styles = StyleSheet.create({
   emptySubtitle: {
     textAlign: 'center',
     color: theme.palette.silver,
+    fontSize: 14,
   },
 });
