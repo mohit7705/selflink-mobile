@@ -1,5 +1,5 @@
-import type { Thread } from '@types/messaging';
 import { Ionicons } from '@expo/vector-icons';
+import type { Thread } from '@types/messaging';
 import React, { memo, useMemo } from 'react';
 import {
   Image,

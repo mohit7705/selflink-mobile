@@ -82,8 +82,7 @@ const normalizeEntityId = <T extends { id?: string | number | null }>(
   if (!entity || entity.id === null || entity.id === undefined) {
     return entity ?? null;
   }
-  const normalizedId =
-    typeof entity.id === 'string' ? entity.id : String(entity.id);
+  const normalizedId = typeof entity.id === 'string' ? entity.id : String(entity.id);
   if (normalizedId === entity.id) {
     return entity;
   }
