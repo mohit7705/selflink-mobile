@@ -159,10 +159,26 @@ export function connectRealtime(token: string, urlOverride?: string): RealtimeCo
         if (typeof __DEV__ !== 'undefined' && __DEV__) {
           const type = typeof payload === 'object' ? (payload.type as string | undefined) : undefined;
           if (type && (type === 'message' || type === 'message:new')) {
+            const payloadObj = payload as Record<string, unknown>;
+            const nested = (payloadObj.payload as Record<string, unknown> | undefined) ?? {};
+            const message = (nested.message as Record<string, unknown> | undefined) ?? nested;
+            const threadId =
+              payloadObj.thread_id ??
+              payloadObj.thread ??
+              nested?.thread ??
+              nested?.thread_id ??
+              message?.thread ??
+              message?.thread_id;
+            const messageId =
+              payloadObj.message_id ??
+              payloadObj.id ??
+              nested?.message_id ??
+              nested?.id ??
+              message?.id;
             console.debug('realtime: event received', {
               type,
-              thread: (payload as any)?.thread_id ?? (payload as any)?.thread,
-              messageId: (payload as any)?.message_id ?? (payload as any)?.message?.id,
+              thread: threadId,
+              messageId,
             });
           }
         }
