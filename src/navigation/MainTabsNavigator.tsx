@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useMemo } from 'react';
+import { Platform } from 'react-native';
 import type { ColorValue, StyleProp, TextStyle } from 'react-native';
 
 import { CreatePostScreen } from '@screens/feed/CreatePostScreen';
@@ -174,6 +175,7 @@ export function MainTabsNavigator() {
           shadowColor: SELF_LINK_BLUE,
           shadowOpacity: 0.25,
           height: 64,
+          marginBottom: Platform.OS === 'android' ? 10 : 0,
           paddingBottom: 8,
           paddingTop: 6,
         },
