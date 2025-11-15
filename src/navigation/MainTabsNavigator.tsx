@@ -63,6 +63,19 @@ function getTabIconName(
   }
 }
 
+type TabBarIconProps = {
+  color: string | ColorValue;
+  focused: boolean;
+  size: number;
+};
+
+const createTabBarIcon =
+  (routeName: string) =>
+  ({ color, size, focused }: TabBarIconProps) => {
+    const iconName = getTabIconName(routeName, focused);
+    return <Ionicons name={iconName} size={size} color={color as ColorValue} />;
+  };
+
 function FeedStackNavigator() {
   return (
     <FeedStack.Navigator>
@@ -165,10 +178,7 @@ export function MainTabsNavigator() {
         tabBarLabelStyle: {
           fontSize: 11,
         },
-        tabBarIcon: ({ color, size, focused }) => {
-          const iconName = getTabIconName(route.name, focused);
-          return <Ionicons name={iconName} size={size} color={color as ColorValue} />;
-        },
+        tabBarIcon: createTabBarIcon(route.name),
       })}
     >
       <Tab.Screen name="Feed" component={FeedStackNavigator} />

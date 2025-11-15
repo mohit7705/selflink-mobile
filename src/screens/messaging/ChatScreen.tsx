@@ -301,7 +301,8 @@ export function ChatScreen() {
           : senderId === currentUserId;
       const previous = messages[index - 1];
       const next = messages[index + 1];
-      const currentSenderKey = senderId ?? (item.sender?.id != null ? String(item.sender.id) : null);
+      const currentSenderKey =
+        senderId ?? (item.sender?.id != null ? String(item.sender.id) : null);
       const prevSenderKey =
         previous?.sender?.id != null ? String(previous.sender.id) : null;
       const nextSenderKey = next?.sender?.id != null ? String(next.sender.id) : null;
