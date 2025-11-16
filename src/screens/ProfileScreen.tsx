@@ -19,6 +19,8 @@ import { useAuth } from '@hooks/useAuth';
 import { useAvatarPicker } from '@hooks/useAvatarPicker';
 import { uploadPersonalMapAvatar } from '@services/api/user';
 import { theme } from '@theme/index';
+import { normalizeAvatarUrl } from '@utils/avatar';
+import { useAuthStore } from '@store/authStore';
 
 export function ProfileScreen() {
   const { user, signOut, updateProfile, refreshProfile, setUser } = useAuth();
@@ -30,6 +32,7 @@ export function ProfileScreen() {
     null,
   );
   const { pickImage, isPicking } = useAvatarPicker();
+  const normalizedAvatarUrl = normalizeAvatarUrl(avatarUrl);
 
   const initials = useMemo(() => {
     if (name) {
@@ -108,6 +111,17 @@ export function ProfileScreen() {
       setUser(updated);
       await refreshProfile();
       console.debug('[ProfileScreen] change avatar: profile refreshed');
+      await useAuthStore
+        .getState()
+        .fetchProfile()
+        .then(() => {
+          if (__DEV__) {
+            console.debug('ProfileScreen: auth store profile refreshed after avatar');
+          }
+        })
+        .catch((error) => {
+          console.warn('ProfileScreen: failed to refresh auth store profile', error);
+        });
       setToast({ message: 'Photo updated.', tone: 'info' });
     } catch (error) {
       console.warn('ProfileScreen: failed to update avatar', error);
@@ -133,8 +147,8 @@ export function ProfileScreen() {
           <View style={styles.headerRow}>
             <View style={styles.avatarColumn}>
               <View style={styles.avatarWrapper}>
-                {avatarUrl ? (
-                  <Image source={{ uri: avatarUrl }} style={styles.avatar} />
+                {normalizedAvatarUrl ? (
+                  <Image source={{ uri: normalizedAvatarUrl }} style={styles.avatar} />
                 ) : (
                   <View style={styles.avatarFallback}>
                     <Text style={styles.avatarInitials}>{initials}</Text>

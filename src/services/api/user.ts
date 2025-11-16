@@ -112,5 +112,9 @@ export async function uploadPersonalMapAvatar(
     body: form,
   });
 
-  return fetchCurrentUser();
+  const user = await fetchCurrentUser();
+  if (__DEV__) {
+    console.debug('userApi: /users/me/ response', { photo: user?.avatarUrl, raw: user });
+  }
+  return user;
 }

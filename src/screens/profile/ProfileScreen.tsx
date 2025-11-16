@@ -7,6 +7,7 @@ import { UserAvatar } from '@components/UserAvatar';
 import { useAvatarPicker } from '@hooks/useAvatarPicker';
 import { useAuthStore } from '@store/authStore';
 import { theme } from '@theme';
+import { normalizeAvatarUrl } from '@utils/avatar';
 
 export function ProfileScreen() {
   const currentUser = useAuthStore((state) => state.currentUser);
@@ -42,7 +43,13 @@ export function ProfileScreen() {
         },
       });
       console.debug('[ProfileHome] change avatar: upload success');
-      await fetchProfile();
+          await fetchProfile();
+          if (__DEV__) {
+            const refreshed = useAuthStore.getState().currentUser;
+            console.debug('[ProfileHome] change avatar: store refreshed', {
+              photo: refreshed?.photo,
+            });
+          }
       console.debug('[ProfileHome] change avatar: profile refreshed');
     } catch (error) {
       console.warn('ProfileScreen: failed to upload avatar', error);
