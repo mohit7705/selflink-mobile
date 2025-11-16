@@ -24,9 +24,7 @@ import type {
   ProfileStackParamList,
 } from './types';
 
-const SELF_LINK_BLUE = '#2563EB';
 const SELF_LINK_GREEN = '#16a34a';
-const TAB_BAR_BG = '#020617';
 
 export const MESSAGE_BADGE_STYLE: StyleProp<TextStyle> = {
   minWidth: 20,
@@ -169,13 +167,15 @@ export function MainTabsNavigator() {
         tabBarActiveTintColor: SELF_LINK_GREEN,
         tabBarInactiveTintColor: '#9CA3AF',
         tabBarStyle: {
-          backgroundColor: TAB_BAR_BG,
+          position: 'absolute',
+          backgroundColor: 'transparent',
           borderTopWidth: 0,
-          elevation: 20,
-          shadowColor: SELF_LINK_BLUE,
-          shadowOpacity: 0.25,
+          borderTopColor: 'transparent',
+          elevation: 0,
+          shadowOpacity: 0,
           height: 64,
-          marginBottom: Platform.OS === 'android' ? 10 : 0,
+          marginHorizontal: 16,
+          marginBottom: Platform.OS === 'android' ? 20 : 0,
           paddingBottom: 8,
           paddingTop: 6,
         },
