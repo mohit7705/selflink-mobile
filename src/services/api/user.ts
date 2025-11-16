@@ -113,6 +113,9 @@ export async function uploadCurrentUserPhoto(
 
   return apiClient.request<AuthUser>('/api/v1/users/me/photo/', {
     method: 'POST',
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
     body: form,
   });
 }
