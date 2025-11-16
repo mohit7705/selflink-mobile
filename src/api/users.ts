@@ -69,21 +69,6 @@ export async function updateCurrentUser(payload: ProfileUpdateInput): Promise<Us
   return data;
 }
 
-export type AvatarFileInput = {
-  uri: string;
-  name: string;
-  type: string;
-};
-
-export async function uploadProfilePhoto(file: AvatarFileInput): Promise<User> {
-  const formData = new FormData();
-  formData.append('photo', file as any);
-  const { data } = await apiClient.patch<User>('/users/me/', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  });
-  return data;
-}
-
 export type PersonalMapPayload = PersonalMapInput & {
   avatarFile?: {
     uri: string;

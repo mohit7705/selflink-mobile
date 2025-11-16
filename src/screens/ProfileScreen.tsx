@@ -17,7 +17,7 @@ import { MetalToast } from '@components/MetalToast';
 import { AuthUser } from '@context/AuthContext';
 import { useAuth } from '@hooks/useAuth';
 import { useAvatarPicker } from '@hooks/useAvatarPicker';
-import { uploadCurrentUserPhoto } from '@services/api/user';
+import { uploadPersonalMapAvatar } from '@services/api/user';
 import { theme } from '@theme/index';
 
 export function ProfileScreen() {
@@ -95,13 +95,14 @@ export function ProfileScreen() {
       if (user) {
         setUser({ ...user, avatarUrl: asset.uri });
       }
-      const updated = await uploadCurrentUserPhoto({
+      const updated = await uploadPersonalMapAvatar({
         uri: asset.uri,
         name: asset.name,
         type: asset.type,
       });
       setAvatarUrl(updated.avatarUrl ?? asset.uri);
       setUser(updated);
+      await refreshProfile();
       setToast({ message: 'Photo updated.', tone: 'info' });
     } catch (error) {
       console.warn('ProfileScreen: failed to update avatar', error);
@@ -109,7 +110,7 @@ export function ProfileScreen() {
     } finally {
       setIsUploadingPhoto(false);
     }
-  }, [isPicking, isUploadingPhoto, pickImage, setToast, setUser, user]);
+  }, [isPicking, isUploadingPhoto, pickImage, refreshProfile, setToast, setUser, user]);
 
   return (
     <SafeAreaView style={styles.safeArea}>

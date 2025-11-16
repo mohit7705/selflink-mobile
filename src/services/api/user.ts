@@ -97,25 +97,20 @@ export type AvatarUploadPayload = {
   type?: string;
 };
 
-/**
- * Uploads a new avatar for the current user. Assumes the backend accepts
- * multipart PATCH/POST requests at `/api/v1/users/me/photo/`.
- */
-export async function uploadCurrentUserPhoto(
+export async function uploadPersonalMapAvatar(
   payload: AvatarUploadPayload,
 ): Promise<AuthUser> {
   const form = new FormData();
-  form.append('photo', {
+  form.append('avatar_image', {
     uri: payload.uri,
     name: payload.name ?? 'avatar.jpg',
     type: payload.type ?? 'image/jpeg',
   } as any);
 
-  return apiClient.request<AuthUser>('/api/v1/users/me/photo/', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
+  await apiClient.request('/api/v1/me/profile/', {
+    method: 'PATCH',
     body: form,
   });
+
+  return fetchCurrentUser();
 }

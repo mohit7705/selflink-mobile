@@ -2,7 +2,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-import { uploadProfilePhoto } from '@api/users';
+import { savePersonalMapProfile } from '@api/users';
 import { UserAvatar } from '@components/UserAvatar';
 import { useAvatarPicker } from '@hooks/useAvatarPicker';
 import { useAuthStore } from '@store/authStore';
@@ -15,6 +15,7 @@ export function ProfileScreen() {
   const logout = useAuthStore((state) => state.logout);
   const [isUpdatingPhoto, setIsUpdatingPhoto] = useState(false);
   const { pickImage, isPicking } = useAvatarPicker();
+  const fetchProfile = useAuthStore((state) => state.fetchProfile);
 
   const handleLogout = useCallback(async () => {
     await logout();
@@ -30,21 +31,20 @@ export function ProfileScreen() {
     }
     setIsUpdatingPhoto(true);
     try {
-      const updated = await uploadProfilePhoto({
-        uri: asset.uri,
-        name: asset.name ?? 'avatar.jpg',
-        type: asset.type ?? 'image/jpeg',
+      await savePersonalMapProfile({
+        avatarFile: {
+          uri: asset.uri,
+          name: asset.name ?? 'avatar.jpg',
+          type: asset.type ?? 'image/jpeg',
+        },
       });
-      useAuthStore.setState((state) => ({
-        ...state,
-        currentUser: updated,
-      }));
+      await fetchProfile();
     } catch (error) {
       console.warn('ProfileScreen: failed to upload avatar', error);
     } finally {
       setIsUpdatingPhoto(false);
     }
-  }, [isPicking, isUpdatingPhoto, pickImage]);
+  }, [fetchProfile, isPicking, isUpdatingPhoto, pickImage]);
 
   if (!currentUser) {
     return (
