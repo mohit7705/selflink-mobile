@@ -90,3 +90,29 @@ export async function updateCurrentUser(
     body: payload,
   });
 }
+
+export type AvatarUploadPayload = {
+  uri: string;
+  name?: string;
+  type?: string;
+};
+
+/**
+ * Uploads a new avatar for the current user. Assumes the backend accepts
+ * multipart PATCH/POST requests at `/api/v1/users/me/photo/`.
+ */
+export async function uploadCurrentUserPhoto(
+  payload: AvatarUploadPayload,
+): Promise<AuthUser> {
+  const form = new FormData();
+  form.append('photo', {
+    uri: payload.uri,
+    name: payload.name ?? 'avatar.jpg',
+    type: payload.type ?? 'image/jpeg',
+  } as any);
+
+  return apiClient.request<AuthUser>('/api/v1/users/me/photo/', {
+    method: 'POST',
+    body: form,
+  });
+}
