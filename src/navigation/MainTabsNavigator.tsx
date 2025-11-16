@@ -12,8 +12,10 @@ import { MentorHomeScreen } from '@screens/mentor/MentorHomeScreen';
 import { ChatScreen } from '@screens/messaging/ChatScreen';
 import { ThreadsScreen } from '@screens/messaging/ThreadsScreen';
 import { NotificationsScreen } from '@screens/notifications/NotificationsScreen';
+import { PaymentsScreen } from '@screens/PaymentsScreen';
 import { ProfileScreen } from '@screens/profile/ProfileScreen';
 import { SearchProfilesScreen } from '@screens/profile/SearchProfilesScreen';
+import { SoulMatchScreen } from '@screens/SoulMatchScreen';
 import { UserProfileScreen } from '@screens/profile/UserProfileScreen';
 import { useMessagingStore } from '@store/messagingStore';
 
@@ -55,6 +57,10 @@ function getTabIconName(
       return focused ? 'chatbubble-ellipses' : 'chatbubble-ellipses-outline';
     case 'Mentor':
       return focused ? 'sparkles' : 'sparkles-outline';
+    case 'SoulMatch':
+      return focused ? 'heart' : 'heart-outline';
+    case 'Payments':
+      return focused ? 'card' : 'card-outline';
     case 'Notifications':
       return focused ? 'notifications' : 'notifications-outline';
     case 'Profile':
@@ -192,6 +198,8 @@ export function MainTabsNavigator() {
         options={messagesOptions}
       />
       <Tab.Screen name="Mentor" component={MentorHomeScreen} />
+      <Tab.Screen name="SoulMatch" component={SoulMatchScreen} />
+      <Tab.Screen name="Payments" component={PaymentsScreen} />
       <Tab.Screen name="Notifications" component={NotificationsScreen} />
       <Tab.Screen name="Profile" component={ProfileStackNavigator} />
     </Tab.Navigator>
