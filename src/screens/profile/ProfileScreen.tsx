@@ -2,9 +2,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
+import { uploadProfilePhoto } from '@api/users';
 import { UserAvatar } from '@components/UserAvatar';
 import { useAvatarPicker } from '@hooks/useAvatarPicker';
-import { uploadProfilePhoto } from '@api/users';
 import { useAuthStore } from '@store/authStore';
 import { theme } from '@theme';
 

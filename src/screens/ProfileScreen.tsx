@@ -15,8 +15,8 @@ import { MetalButton } from '@components/MetalButton';
 import { MetalPanel } from '@components/MetalPanel';
 import { MetalToast } from '@components/MetalToast';
 import { AuthUser } from '@context/AuthContext';
-import { useAvatarPicker } from '@hooks/useAvatarPicker';
 import { useAuth } from '@hooks/useAuth';
+import { useAvatarPicker } from '@hooks/useAvatarPicker';
 import { uploadCurrentUserPhoto } from '@services/api/user';
 import { theme } from '@theme/index';
 
