@@ -1,7 +1,7 @@
-import type { MediaAsset } from '@schemas/social';
 import { memo, useMemo } from 'react';
 import { Image, StyleSheet, View } from 'react-native';
 
+import type { MediaAsset } from '@schemas/social';
 import { resolveMediaUrl } from '@utils/media';
 
 import { MarkdownText } from './markdown/MarkdownText';
