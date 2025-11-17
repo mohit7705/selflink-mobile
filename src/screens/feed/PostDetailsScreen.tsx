@@ -178,15 +178,27 @@ export function PostDetailsScreen() {
           keyExtractor={(item) => String(item.id)}
           renderItem={({ item }) => (
             <View style={styles.comment}>
-              <Text style={styles.commentAuthor}>{item.author.name}</Text>
-              {item.body ? <MarkdownText>{item.body}</MarkdownText> : null}
-              {item.image_url ? (
-                <Image
-                  source={{ uri: item.image_url }}
-                  style={styles.commentImage}
-                  resizeMode="cover"
-                />
-              ) : null}
+              <UserAvatar uri={item.author.photo} label={item.author.name} size={36} />
+              <View style={styles.commentContent}>
+                <View style={styles.commentHeader}>
+                  <Text style={styles.commentAuthor}>{item.author.name}</Text>
+                  <Text style={styles.commentTimestamp}>
+                    {new Date(item.created_at).toLocaleString()}
+                  </Text>
+                </View>
+                {item.body ? (
+                  <View style={styles.commentBody}>
+                    <MarkdownText>{item.body}</MarkdownText>
+                  </View>
+                ) : null}
+                {item.image_url ? (
+                  <Image
+                    source={{ uri: item.image_url }}
+                    style={styles.commentImage}
+                    resizeMode="cover"
+                  />
+                ) : null}
+              </View>
             </View>
           )}
           ListEmptyComponent={<Text style={styles.emptyComments}>No comments yet.</Text>}
@@ -306,14 +318,35 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
   comment: {
-    paddingVertical: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: '#E2E8F0',
-    gap: 6,
+    flexDirection: 'row',
+    gap: 10,
+    padding: 12,
+    borderRadius: 18,
+    backgroundColor: 'rgba(15,23,42,0.85)',
+    borderWidth: 1,
+    borderColor: 'rgba(148,163,184,0.15)',
+    marginBottom: 12,
+  },
+  commentContent: {
+    flex: 1,
+    gap: 8,
+  },
+  commentHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   commentAuthor: {
     fontWeight: '500',
-    color: '#E2E8F0',
+    color: '#F8FAFC',
+    fontSize: 15,
+  },
+  commentTimestamp: {
+    color: '#94A3B8',
+    fontSize: 11,
+  },
+  commentBody: {
+    gap: 4,
   },
   commentImage: {
     width: '100%',

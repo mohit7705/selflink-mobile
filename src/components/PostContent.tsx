@@ -1,10 +1,10 @@
+import type { MediaAsset } from '@types/social';
 import { memo, useMemo } from 'react';
 import { Image, StyleSheet, View } from 'react-native';
 
-import type { MediaAsset } from '@types/social';
+import { resolveMediaUrl } from '@utils/media';
 
 import { MarkdownText } from './markdown/MarkdownText';
-import { resolveMediaUrl } from '@utils/media';
 
 type Props = {
   text?: string | null;
@@ -61,7 +61,11 @@ function PostContentComponent({ text, media }: Props) {
                   : undefined,
               ]}
             >
-              <Image source={{ uri: attachment.uri }} style={styles.mediaImage} resizeMode="cover" />
+              <Image
+                source={{ uri: attachment.uri }}
+                style={styles.mediaImage}
+                resizeMode="cover"
+              />
             </View>
           ))}
         </View>

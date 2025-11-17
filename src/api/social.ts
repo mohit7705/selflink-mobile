@@ -162,9 +162,10 @@ export async function addComment(
     throw new Error('Write a comment or attach a photo.');
   }
   try {
+    const endpoint = '/comments/';
     if (hasImage && payload.image) {
       const formData = new FormData();
-      formData.append('post', postId);
+      formData.append('post', String(postId));
       formData.append('body', trimmed);
       formData.append('text', trimmed);
       formData.append('image', {
@@ -173,18 +174,14 @@ export async function addComment(
         type: payload.image.type ?? 'image/jpeg',
       } as unknown as Blob);
 
-      const { data } = await apiClient.post<RawComment>(
-        `/posts/${postId}/comments/`,
-        formData,
-        {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        },
-      );
+      const { data } = await apiClient.post<RawComment>(endpoint, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
       return normalizeComment(data);
     }
 
-    const { data } = await apiClient.post<RawComment>(`/posts/${postId}/comments/`, {
-      post: postId,
+    const { data } = await apiClient.post<RawComment>(endpoint, {
+      post: String(postId),
       body: trimmed,
       text: trimmed,
     });
