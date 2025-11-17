@@ -14,7 +14,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import * as socialApi from '@api/social';
-import { CommentMarkdown } from '@components/comments/CommentMarkdown';
+import { MarkdownText } from '@components/markdown/MarkdownText';
 import { useToast } from '@context/ToastContext';
 import { useImagePicker, type PickedImage } from '@hooks/useImagePicker';
 import type { Comment, Post } from '@schemas/social';
@@ -164,7 +164,7 @@ export function PostDetailsScreen() {
           renderItem={({ item }) => (
             <View style={styles.comment}>
               <Text style={styles.commentAuthor}>{item.author.name}</Text>
-              {item.body ? <CommentMarkdown>{item.body}</CommentMarkdown> : null}
+              {item.body ? <MarkdownText>{item.body}</MarkdownText> : null}
               {item.image_url ? (
                 <Image
                   source={{ uri: item.image_url }}
@@ -220,7 +220,10 @@ export function PostDetailsScreen() {
             editable={!submitting}
           />
           <TouchableOpacity
-            style={[styles.sendButton, (!canSubmit || submitting) && styles.sendButtonDisabled]}
+            style={[
+              styles.sendButton,
+              (!canSubmit || submitting) && styles.sendButtonDisabled,
+            ]}
             onPress={handleSubmit}
             disabled={!canSubmit || submitting}
             accessibilityRole="button"

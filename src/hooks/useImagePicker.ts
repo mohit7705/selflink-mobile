@@ -18,9 +18,7 @@ const defaultOptions: ImagePicker.ImagePickerOptions = {
  * General-purpose helper to request permissions and launch the system picker.
  * Reuses the avatar flow but lets each caller customize picker options.
  */
-export function useImagePicker(
-  overrides?: Partial<ImagePicker.ImagePickerOptions>,
-) {
+export function useImagePicker(overrides?: Partial<ImagePicker.ImagePickerOptions>) {
   const [isPicking, setIsPicking] = useState(false);
   const optionsRef = useRef<Partial<ImagePicker.ImagePickerOptions> | undefined>(
     overrides,

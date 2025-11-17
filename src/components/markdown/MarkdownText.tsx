@@ -2,20 +2,20 @@ import { useCallback } from 'react';
 import { Linking, StyleSheet } from 'react-native';
 import Markdown from 'react-native-markdown-display';
 
-import { palette } from '@theme/colors';
-import { typography } from '@theme/typography';
+import { palette } from '../../theme/colors';
+import { typography } from '../../theme/typography';
 
 type Props = {
   children: string;
 };
 
-export function CommentMarkdown({ children }: Props) {
+export function MarkdownText({ children }: Props) {
   const handleLinkPress = useCallback((url: string) => {
     if (!url) {
       return false;
     }
     Linking.openURL(url).catch((error) => {
-      console.warn('CommentMarkdown: failed to open link', error);
+      console.warn('MarkdownText: failed to open link', error);
     });
     return true;
   }, []);
