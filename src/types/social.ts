@@ -42,6 +42,9 @@ export interface Comment {
   body: string;
   text?: string;
   image_url?: string | null;
+  image_urls?: string[] | null;
+  images?: string[] | null;
+  media?: MediaAsset[] | null;
   parent: number | null;
   created_at: string;
 }

@@ -5,6 +5,7 @@ import {
   ActivityIndicator,
   FlatList,
   Image,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -14,11 +15,11 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import * as socialApi from '@api/social';
-import { MarkdownText } from '@components/markdown/MarkdownText';
+import { CommentContent } from '@components/comments/CommentContent';
 import { PostContent } from '@components/PostContent';
 import { UserAvatar } from '@components/UserAvatar';
 import { useToast } from '@context/ToastContext';
-import { useImagePicker, type PickedImage } from '@hooks/useImagePicker';
+import { useMultiImagePicker } from '@hooks/useMultiImagePicker';
 import type { Comment, Post } from '@schemas/social';
 import { useFeedStore } from '@store/feedStore';
 
@@ -29,6 +30,23 @@ interface RouteParams {
 
 type DetailsRoute = RouteProp<Record<'PostDetails', RouteParams>, 'PostDetails'>;
 
+const collectCommentImageSources = (comment: Comment): string[] => {
+  const sources: string[] = [];
+  const push = (value?: string | null) => {
+    if (typeof value === 'string' && value.length > 0) {
+      sources.push(value);
+    }
+  };
+  push(comment.image_url);
+  if (Array.isArray(comment.image_urls)) {
+    comment.image_urls.forEach(push);
+  }
+  if (Array.isArray(comment.images)) {
+    comment.images.forEach(push);
+  }
+  return sources;
+};
+
 export function PostDetailsScreen() {
   const route = useRoute<DetailsRoute>();
   const [post, setPost] = useState<Post | undefined>(route.params?.post);
@@ -37,15 +55,21 @@ export function PostDetailsScreen() {
   const [loadingComments, setLoadingComments] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [commentText, setCommentText] = useState('');
-  const [selectedImage, setSelectedImage] = useState<PickedImage | null>(null);
   const addCommentToStore = useFeedStore((state) => state.addComment);
   const insets = useSafeAreaInsets();
   const toast = useToast();
-  const { pickImage, isPicking } = useImagePicker({ allowsEditing: false, quality: 0.9 });
+  const {
+    images: selectedImages,
+    pickImages,
+    removeImage,
+    clearImages,
+    isPicking,
+    canAddMore,
+  } = useMultiImagePicker();
   const postId = route.params?.postId ?? post?.id;
   const canSubmit = useMemo(
-    () => commentText.trim().length > 0 || Boolean(selectedImage),
-    [commentText, selectedImage],
+    () => commentText.trim().length > 0 || selectedImages.length > 0,
+    [commentText, selectedImages],
   );
 
   const fetchPost = useCallback(async () => {
@@ -95,17 +119,11 @@ export function PostDetailsScreen() {
       const trimmed = commentText.trim();
       const newComment = await addCommentToStore(postId, {
         body: trimmed,
-        image: selectedImage
-          ? {
-              uri: selectedImage.uri,
-              name: selectedImage.name ?? 'comment-photo.jpg',
-              type: selectedImage.type ?? 'image/jpeg',
-            }
-          : undefined,
+        images: selectedImages,
       });
       setComments((prev) => [...prev, newComment]);
       setCommentText('');
-      setSelectedImage(null);
+      clearImages();
     } catch (error) {
       console.warn('PostDetails: failed to add comment', error);
       const message =
@@ -122,21 +140,15 @@ export function PostDetailsScreen() {
     } finally {
       setSubmitting(false);
     }
-  }, [postId, canSubmit, commentText, addCommentToStore, selectedImage, toast]);
-
-  const handlePickImage = useCallback(async () => {
-    if (isPicking || submitting) {
-      return;
-    }
-    const asset = await pickImage();
-    if (asset) {
-      setSelectedImage(asset);
-    }
-  }, [isPicking, pickImage, submitting]);
-
-  const handleRemoveImage = useCallback(() => {
-    setSelectedImage(null);
-  }, []);
+  }, [
+    postId,
+    canSubmit,
+    commentText,
+    addCommentToStore,
+    selectedImages,
+    toast,
+    clearImages,
+  ]);
 
   if (!postId) {
     return (
@@ -165,7 +177,18 @@ export function PostDetailsScreen() {
             </View>
           </View>
           <View style={styles.postBody}>
-            <PostContent text={post?.text} media={post?.media} />
+            <PostContent
+              text={post?.text}
+              media={post?.media}
+              legacySources={[
+                (post as any)?.images,
+                (post as any)?.image_urls,
+                (post as any)?.image,
+                (post as any)?.image_url,
+                (post as any)?.photo,
+                (post as any)?.photos,
+              ]}
+            />
           </View>
         </View>
       )}
@@ -186,18 +209,11 @@ export function PostDetailsScreen() {
                     {new Date(item.created_at).toLocaleString()}
                   </Text>
                 </View>
-                {item.body ? (
-                  <View style={styles.commentBody}>
-                    <MarkdownText>{item.body}</MarkdownText>
-                  </View>
-                ) : null}
-                {item.image_url ? (
-                  <Image
-                    source={{ uri: item.image_url }}
-                    style={styles.commentImage}
-                    resizeMode="cover"
-                  />
-                ) : null}
+                <CommentContent
+                  text={item.body}
+                  media={item.media}
+                  legacySources={collectCommentImageSources(item)}
+                />
               </View>
             </View>
           )}
@@ -206,33 +222,37 @@ export function PostDetailsScreen() {
       )}
 
       <View style={[styles.composerBar, { paddingBottom: Math.max(insets.bottom, 16) }]}>
-        {selectedImage ? (
-          <View style={styles.previewContainer}>
-            <Image
-              source={{ uri: selectedImage.uri }}
-              style={styles.previewImage}
-              resizeMode="cover"
-            />
-            <TouchableOpacity
-              style={styles.previewRemoveButton}
-              onPress={handleRemoveImage}
-              accessibilityRole="button"
-              accessibilityLabel="Remove selected image"
-            >
-              <Ionicons name="close" size={14} color="#FFFFFF" />
-            </TouchableOpacity>
-          </View>
+        {selectedImages.length ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.previewScroll}
+          >
+            {selectedImages.map((image) => (
+              <View key={image.uri} style={styles.previewContainer}>
+                <Image source={{ uri: image.uri }} style={styles.previewImage} />
+                <TouchableOpacity
+                  style={styles.previewRemoveButton}
+                  onPress={() => removeImage(image.uri)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Remove selected image"
+                >
+                  <Ionicons name="close" size={14} color="#FFFFFF" />
+                </TouchableOpacity>
+              </View>
+            ))}
+          </ScrollView>
         ) : null}
         <View style={styles.composer}>
           <TouchableOpacity
             style={[
               styles.iconButton,
-              (isPicking || submitting) && styles.iconButtonDisabled,
+              (isPicking || submitting || !canAddMore) && styles.iconButtonDisabled,
             ]}
-            onPress={handlePickImage}
-            disabled={isPicking || submitting}
+            onPress={pickImages}
+            disabled={isPicking || submitting || !canAddMore}
             accessibilityRole="button"
-            accessibilityLabel="Attach an image"
+            accessibilityLabel="Attach images"
           >
             <Ionicons name="image-outline" size={20} color="#CBD5F5" />
           </TouchableOpacity>
@@ -345,16 +365,6 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
     fontSize: 11,
   },
-  commentBody: {
-    gap: 4,
-  },
-  commentImage: {
-    width: '100%',
-    borderRadius: 12,
-    minHeight: 160,
-    maxHeight: 240,
-    marginTop: 4,
-  },
   emptyComments: {
     color: '#94A3B8',
     textAlign: 'center',
@@ -415,10 +425,14 @@ const styles = StyleSheet.create({
     color: '#0B1120',
     fontWeight: '600',
   },
+  previewScroll: {
+    flexDirection: 'row',
+    gap: 12,
+    paddingBottom: 4,
+  },
   previewContainer: {
     position: 'relative',
-    alignSelf: 'flex-start',
-    marginBottom: 4,
+    marginRight: 12,
   },
   previewImage: {
     width: 120,

@@ -8,8 +8,17 @@ export type PickedImage = {
   type?: string;
 };
 
+type ImagePickerModule = typeof ImagePicker & {
+  MediaType?: {
+    image: ImagePicker.MediaType;
+  };
+};
+
+export const IMAGE_MEDIA_TYPE = ((ImagePicker as ImagePickerModule).MediaType?.image ??
+  ('images' as ImagePicker.MediaType)) as ImagePicker.MediaType;
+
 const defaultOptions: ImagePicker.ImagePickerOptions = {
-  mediaTypes: ImagePicker.MediaTypeOptions.Images,
+  mediaTypes: [IMAGE_MEDIA_TYPE],
   allowsEditing: false,
   quality: 0.9,
 };

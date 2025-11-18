@@ -100,6 +100,7 @@ export type CommentImageAttachment = {
 export type AddCommentPayload = {
   body?: string;
   image?: CommentImageAttachment | null;
+  images?: CommentImageAttachment[] | null;
 };
 
 const logApiError = (error: unknown, context: string) => {
@@ -108,11 +109,13 @@ const logApiError = (error: unknown, context: string) => {
   }
 };
 
-type RawComment = Omit<Comment, 'body' | 'image_url'> & {
+type RawComment = Omit<Comment, 'body' | 'image_url' | 'image_urls' | 'images'> & {
   body?: string | null;
   text?: string | null;
   image_url?: string | null;
   image?: string | null;
+  image_urls?: Array<string | null> | null;
+  images?: Array<string | { url?: string | null; uri?: string | null }> | null;
 };
 
 const normalizeComment = (comment: RawComment): Comment => {
@@ -127,10 +130,35 @@ const normalizeComment = (comment: RawComment): Comment => {
     (typeof comment.image === 'string' && comment.image.length > 0
       ? comment.image
       : null);
+  const imageUrls = Array.isArray(comment.image_urls)
+    ? comment.image_urls.filter(
+        (url): url is string => typeof url === 'string' && url.length > 0,
+      )
+    : null;
+  const images = Array.isArray(comment.images)
+    ? comment.images
+        .map((item) => {
+          if (typeof item === 'string') {
+            return item;
+          }
+          if (item && typeof item === 'object') {
+            if (typeof item.url === 'string') {
+              return item.url;
+            }
+            if (typeof item.uri === 'string') {
+              return item.uri;
+            }
+          }
+          return undefined;
+        })
+        .filter((url): url is string => typeof url === 'string' && url.length > 0)
+    : null;
   return {
     ...comment,
     body,
     image_url: imageUrl ?? null,
+    image_urls: imageUrls,
+    images,
   };
 };
 
@@ -157,22 +185,30 @@ export async function addComment(
   payload: AddCommentPayload,
 ): Promise<Comment> {
   const trimmed = payload.body?.trim() ?? '';
-  const hasImage = Boolean(payload.image);
+  const attachments: CommentImageAttachment[] = [];
+  if (payload.images && payload.images.length > 0) {
+    attachments.push(...payload.images);
+  } else if (payload.image) {
+    attachments.push(payload.image);
+  }
+  const hasImage = attachments.length > 0;
   if (!trimmed && !hasImage) {
     throw new Error('Write a comment or attach a photo.');
   }
   try {
     const endpoint = '/comments/';
-    if (hasImage && payload.image) {
+    if (hasImage) {
       const formData = new FormData();
       formData.append('post', String(postId));
       formData.append('body', trimmed);
       formData.append('text', trimmed);
-      formData.append('image', {
-        uri: payload.image.uri,
-        name: payload.image.name ?? 'comment-photo.jpg',
-        type: payload.image.type ?? 'image/jpeg',
-      } as unknown as Blob);
+      attachments.forEach((attachment, index) => {
+        formData.append('images', {
+          uri: attachment.uri,
+          name: attachment.name ?? `comment-photo-${index + 1}.jpg`,
+          type: attachment.type ?? 'image/jpeg',
+        } as unknown as Blob);
+      });
 
       const { data } = await apiClient.post<RawComment>(endpoint, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },

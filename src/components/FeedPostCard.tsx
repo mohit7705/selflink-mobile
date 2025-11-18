@@ -107,7 +107,18 @@ function FeedPostCardComponent({ post }: Props) {
 
       <TouchableOpacity onPress={handleOpenDetails} activeOpacity={0.92}>
         <View style={styles.body}>
-          <PostContent text={post.text} media={post.media} />
+          <PostContent
+            text={post.text}
+            media={post.media}
+            legacySources={[
+              (post as any)?.images,
+              (post as any)?.image_urls,
+              (post as any)?.image,
+              (post as any)?.image_url,
+              (post as any)?.photo,
+              (post as any)?.photos,
+            ]}
+          />
         </View>
       </TouchableOpacity>
 

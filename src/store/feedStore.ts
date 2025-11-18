@@ -102,11 +102,14 @@ export const useFeedStore = create<FeedState>((set, get) => ({
   },
   async addComment(postId, payload) {
     const trimmed = payload.body?.trim() ?? '';
+    const hasAttachments =
+      Boolean(payload.image) ||
+      (Array.isArray(payload.images) && payload.images.length > 0);
     const normalizedPayload: AddCommentPayload = {
       ...payload,
       body: trimmed,
     };
-    if (!trimmed && !payload.image) {
+    if (!trimmed && !hasAttachments) {
       throw new Error('Write a comment or attach a photo.');
     }
     try {
