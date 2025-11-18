@@ -22,6 +22,9 @@ export interface Post {
   visibility: string;
   language: string;
   media: MediaAsset[];
+  image_url?: string | null;
+  image_urls?: string[] | null;
+  images?: Array<string | { url?: string | null; uri?: string | null }> | null;
   like_count: number;
   comment_count: number;
   liked: boolean;

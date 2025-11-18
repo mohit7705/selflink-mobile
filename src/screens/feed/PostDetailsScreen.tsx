@@ -181,10 +181,10 @@ export function PostDetailsScreen() {
               text={post?.text}
               media={post?.media}
               legacySources={[
-                (post as any)?.images,
-                (post as any)?.image_urls,
+                post?.images,
+                post?.image_urls,
+                post?.image_url,
                 (post as any)?.image,
-                (post as any)?.image_url,
                 (post as any)?.photo,
                 (post as any)?.photos,
               ]}
