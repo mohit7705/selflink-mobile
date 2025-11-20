@@ -41,11 +41,17 @@ export type MentorStackParamList = {
   NatalChart: undefined;
 };
 
+export type SoulMatchStackParamList = {
+  SoulMatchHome: undefined;
+  SoulMatchRecommendations: undefined;
+  SoulMatchDetail: { userId: number; displayName?: string };
+};
+
 export type MainTabsParamList = {
   Feed: NavigatorScreenParams<FeedStackParamList> | undefined;
   Messages: NavigatorScreenParams<MessagesStackParamList> | undefined;
   Mentor: NavigatorScreenParams<MentorStackParamList> | undefined;
-  SoulMatch: undefined;
+  SoulMatch: NavigatorScreenParams<SoulMatchStackParamList> | undefined;
   Payments: undefined;
   WalletLedger: undefined;
   Notifications: undefined;

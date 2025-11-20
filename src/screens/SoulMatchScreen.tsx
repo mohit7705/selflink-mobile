@@ -1,46 +1,35 @@
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
-import { useMemo } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { MetalButton } from '@components/MetalButton';
 import { MetalPanel } from '@components/MetalPanel';
+import { SoulMatchStackParamList } from '@navigation/types';
 import { theme } from '@theme/index';
 
-const sampleTraits = [
-  'Celestial Alignment: 82% resonance',
-  'Mentor Affinity: 75% shared growth paths',
-  'Community Harmony: 68% shared circles',
-];
-
 export function SoulMatchScreen() {
-  const traitRows = useMemo(
-    () => sampleTraits.map((trait) => ({ id: trait, trait })),
-    [],
-  );
+  const navigation = useNavigation<NativeStackNavigationProp<SoulMatchStackParamList>>();
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar style="light" />
-      <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.headline}>SoulMatch Insights</Text>
+      <View style={styles.content}>
+        <Text style={styles.headline}>SoulMatch</Text>
         <Text style={styles.subtitle}>
-          Elegant gradients, rounded panels, and carefully tuned copy—not just a
-          compatibility score, but a story about your next connection.
+          Explore your top matches, detailed compatibility, and mentor guidance.
         </Text>
 
         <MetalPanel glow>
-          <Text style={styles.panelTitle}>Today&apos;s Spotlight</Text>
-          {traitRows.map((row) => (
-            <View key={row.id} style={styles.traitRow}>
-              <View style={styles.traitBullet} />
-              <Text style={styles.traitText}>{row.trait}</Text>
-            </View>
-          ))}
-          <Text style={styles.footer}>
-            Pull real data by wiring to /api/v1/soulmatch/.
-          </Text>
+          <Text style={styles.panelTitle}>Recommendations</Text>
+          <Text style={styles.cardText}>Browse suggested matches sorted by compatibility.</Text>
+          <MetalButton
+            title="View Recommendations"
+            onPress={() => navigation.navigate('SoulMatchRecommendations')}
+          />
         </MetalPanel>
-      </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }
@@ -67,27 +56,11 @@ const styles = StyleSheet.create({
   panelTitle: {
     color: theme.palette.titanium,
     ...theme.typography.subtitle,
-    marginBottom: theme.spacing.md,
-  },
-  traitRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.sm,
     marginBottom: theme.spacing.sm,
   },
-  traitBullet: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: theme.palette.glow,
-  },
-  traitText: {
-    color: theme.palette.titanium,
-    ...theme.typography.body,
-  },
-  footer: {
-    marginTop: theme.spacing.md,
+  cardText: {
     color: theme.palette.silver,
-    fontStyle: 'italic',
+    ...theme.typography.body,
+    marginBottom: theme.spacing.sm,
   },
 });

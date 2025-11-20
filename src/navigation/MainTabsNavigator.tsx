@@ -14,6 +14,8 @@ import { InboxScreen } from '@screens/InboxScreen';
 import { MentorHomeScreen } from '@screens/mentor/MentorHomeScreen';
 import { BirthDataScreen } from '@screens/astro/BirthDataScreen';
 import { NatalChartScreen } from '@screens/astro/NatalChartScreen';
+import { SoulMatchRecommendationsScreen } from '@screens/soulmatch/SoulMatchRecommendationsScreen';
+import { SoulMatchDetailsScreen } from '@screens/soulmatch/SoulMatchDetailsScreen';
 import { ChatScreen } from '@screens/messaging/ChatScreen';
 import { ThreadsScreen } from '@screens/messaging/ThreadsScreen';
 import { NotificationsScreen } from '@screens/notifications/NotificationsScreen';
@@ -31,6 +33,7 @@ import type {
   MessagesStackParamList,
   ProfileStackParamList,
   MentorStackParamList,
+  SoulMatchStackParamList,
 } from './types';
 
 const SELF_LINK_GREEN = '#16a34a';
@@ -55,6 +58,7 @@ const FeedStack = createNativeStackNavigator<FeedStackParamList>();
 const MessagesStack = createNativeStackNavigator<MessagesStackParamList>();
 const ProfileStack = createNativeStackNavigator<ProfileStackParamList>();
 const MentorStack = createNativeStackNavigator<MentorStackParamList>();
+const SoulMatchStack = createNativeStackNavigator<SoulMatchStackParamList>();
 
 function getTabIconName(
   routeName: string,
@@ -192,6 +196,28 @@ function MentorStackNavigator() {
   );
 }
 
+function SoulMatchStackNavigator() {
+  return (
+    <SoulMatchStack.Navigator>
+      <SoulMatchStack.Screen
+        name="SoulMatchHome"
+        component={SoulMatchScreen}
+        options={{ headerShown: false }}
+      />
+      <SoulMatchStack.Screen
+        name="SoulMatchRecommendations"
+        component={SoulMatchRecommendationsScreen}
+        options={{ title: 'SoulMatch Recommendations' }}
+      />
+      <SoulMatchStack.Screen
+        name="SoulMatchDetail"
+        component={SoulMatchDetailsScreen}
+        options={{ title: 'SoulMatch' }}
+      />
+    </SoulMatchStack.Navigator>
+  );
+}
+
 export function MainTabsNavigator() {
   const insets = useSafeAreaInsets();
   const safeBottom = Math.max(insets.bottom, 12);
@@ -234,7 +260,7 @@ export function MainTabsNavigator() {
         options={messagesOptions}
       />
       <Tab.Screen name="Mentor" component={MentorStackNavigator} />
-      <Tab.Screen name="SoulMatch" component={SoulMatchScreen} />
+      <Tab.Screen name="SoulMatch" component={SoulMatchStackNavigator} />
       <Tab.Screen name="Payments" component={PaymentsScreen} />
       <Tab.Screen name="WalletLedger" component={WalletLedgerScreen} />
       <Tab.Screen name="Community" component={CommunityScreen} />

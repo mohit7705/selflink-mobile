@@ -1,21 +1,22 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { ReactNode } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, ViewStyle } from 'react-native';
 
 import { theme } from '@theme/index';
 
 type Props = {
   children: ReactNode;
   glow?: boolean;
+  style?: ViewStyle;
 };
 
-export function MetalPanel({ children, glow = false }: Props) {
+export function MetalPanel({ children, glow = false, style }: Props) {
   return (
     <LinearGradient
       colors={theme.gradients.panel}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
-      style={[styles.container, glow && styles.glow]}
+      style={[styles.container, glow && styles.glow, style]}
     >
       <View style={styles.inner}>{children}</View>
     </LinearGradient>

@@ -1,20 +1,20 @@
 import { apiClient } from '@services/api/client';
+import { SoulmatchResult } from '@schemas/soulmatch';
 
-export type SoulMatchProfile = {
-  id?: number;
-  compatibility_score?: number;
-  summary?: string;
-  partner?: Record<string, unknown>;
-  updated_at?: string;
-  [key: string]: unknown;
-};
-
-export async function fetchSoulMatch(): Promise<SoulMatchProfile> {
-  return apiClient.request<SoulMatchProfile>('/api/v1/soulmatch/', { method: 'GET' });
+export async function fetchRecommendations(): Promise<SoulmatchResult[]> {
+  return apiClient.request<SoulmatchResult[]>('/api/v1/soulmatch/recommendations/', {
+    method: 'GET',
+  });
 }
 
-export async function refreshSoulMatch(): Promise<SoulMatchProfile> {
-  return apiClient.request<SoulMatchProfile>('/api/v1/soulmatch/refresh/', {
-    method: 'POST',
+export async function fetchSoulmatchWith(userId: number): Promise<SoulmatchResult> {
+  return apiClient.request<SoulmatchResult>(`/api/v1/soulmatch/with/${userId}/`, {
+    method: 'GET',
+  });
+}
+
+export async function fetchSoulmatchMentor(userId: number): Promise<SoulmatchResult> {
+  return apiClient.request<SoulmatchResult>(`/api/v1/mentor/soulmatch/${userId}/`, {
+    method: 'GET',
   });
 }
