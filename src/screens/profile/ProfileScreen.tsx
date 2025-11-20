@@ -5,8 +5,11 @@ import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-nati
 import { savePersonalMapProfile } from '@api/users';
 import { UserAvatar } from '@components/UserAvatar';
 import { useAvatarPicker } from '@hooks/useAvatarPicker';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuthStore } from '@store/authStore';
 import { theme } from '@theme';
+import { ProfileStackParamList } from '@navigation/types';
 
 export function ProfileScreen() {
   const currentUser = useAuthStore((state) => state.currentUser);
@@ -16,6 +19,8 @@ export function ProfileScreen() {
   const [isUpdatingPhoto, setIsUpdatingPhoto] = useState(false);
   const { pickImage, isPicking } = useAvatarPicker();
   const fetchProfile = useAuthStore((state) => state.fetchProfile);
+  const navigation =
+    useNavigation<NativeStackNavigationProp<ProfileStackParamList, 'ProfileHome'>>();
 
   const handleLogout = useCallback(async () => {
     await logout();
@@ -111,6 +116,13 @@ export function ProfileScreen() {
             activeOpacity={0.9}
           >
             <Text style={styles.logoutLabel}>Sign out</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.editButton}
+            onPress={() => navigation.navigate('ProfileEdit')}
+            activeOpacity={0.9}
+          >
+            <Text style={styles.logoutLabel}>Edit profile</Text>
           </TouchableOpacity>
         </LinearGradient>
       </ScrollView>
@@ -208,6 +220,16 @@ const styles = StyleSheet.create({
   logoutLabel: {
     color: theme.colors.error,
     ...theme.typography.button,
+  },
+  editButton: {
+    marginTop: theme.spacing.md,
+    alignSelf: 'stretch',
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.radii.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.08)',
   },
   emptyState: {
     flex: 1,

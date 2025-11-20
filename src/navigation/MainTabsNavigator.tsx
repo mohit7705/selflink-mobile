@@ -18,11 +18,13 @@ import { DailyMentorScreen } from '@screens/mentor/DailyMentorScreen';
 import { NatalMentorScreen } from '@screens/mentor/NatalMentorScreen';
 import { SoulMatchRecommendationsScreen } from '@screens/soulmatch/SoulMatchRecommendationsScreen';
 import { SoulMatchDetailsScreen } from '@screens/soulmatch/SoulMatchDetailsScreen';
+import { SoulMatchMentorScreen } from '@screens/soulmatch/SoulMatchMentorScreen';
 import { ChatScreen } from '@screens/messaging/ChatScreen';
 import { ThreadsScreen } from '@screens/messaging/ThreadsScreen';
 import { NotificationsScreen } from '@screens/notifications/NotificationsScreen';
 import { PaymentsScreen } from '@screens/PaymentsScreen';
 import { ProfileScreen } from '@screens/profile/ProfileScreen';
+import { ProfileEditScreen } from '@screens/profile/ProfileEditScreen';
 import { SearchProfilesScreen } from '@screens/profile/SearchProfilesScreen';
 import { UserProfileScreen } from '@screens/profile/UserProfileScreen';
 import { SoulMatchScreen } from '@screens/SoulMatchScreen';
@@ -172,6 +174,11 @@ function ProfileStackNavigator() {
         component={UserProfileScreen}
         options={{ title: 'Profile' }}
       />
+      <ProfileStack.Screen
+        name="ProfileEdit"
+        component={ProfileEditScreen}
+        options={{ title: 'Edit Profile' }}
+      />
     </ProfileStack.Navigator>
   );
 }
@@ -225,6 +232,11 @@ function SoulMatchStackNavigator() {
         name="SoulMatchDetail"
         component={SoulMatchDetailsScreen}
         options={{ title: 'SoulMatch' }}
+      />
+      <SoulMatchStack.Screen
+        name="SoulMatchMentor"
+        component={SoulMatchMentorScreen}
+        options={{ title: 'SoulMatch Mentor' }}
       />
     </SoulMatchStack.Navigator>
   );

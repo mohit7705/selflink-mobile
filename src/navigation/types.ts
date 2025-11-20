@@ -33,6 +33,7 @@ export type ProfileStackParamList = {
   ProfileHome: undefined;
   SearchProfiles: undefined;
   UserProfile: { userId: number };
+  ProfileEdit: undefined;
 };
 
 export type MentorStackParamList = {
@@ -47,6 +48,7 @@ export type SoulMatchStackParamList = {
   SoulMatchHome: undefined;
   SoulMatchRecommendations: undefined;
   SoulMatchDetail: { userId: number; displayName?: string };
+  SoulMatchMentor: { userId: number; displayName?: string };
 };
 
 export type MainTabsParamList = {

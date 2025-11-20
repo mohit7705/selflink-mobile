@@ -64,6 +64,11 @@ export async function getCurrentUser(): Promise<User> {
   return data;
 }
 
+export async function updateMyProfile(payload: Partial<User>): Promise<User> {
+  const { data } = await apiClient.patch<User>('/users/me/', payload);
+  return data;
+}
+
 export async function updateCurrentUser(payload: ProfileUpdateInput): Promise<User> {
   const { data } = await apiClient.patch<User>('/users/me/', payload);
   return data;

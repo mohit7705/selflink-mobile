@@ -127,6 +127,15 @@ export function SoulMatchDetailsScreen() {
         ) : (
           <MetalButton title="Load Mentor Insight" onPress={loadMentor} />
         )}
+        <MetalButton
+          title="Open Mentor Screen"
+          onPress={() =>
+            navigation.navigate('SoulMatchMentor', {
+              userId: data.user?.id ?? data.user_id ?? userId,
+              displayName: displayName || data.user?.name || data.user?.handle,
+            })
+          }
+        />
       </MetalPanel>
 
       <MetalButton title="Back to recommendations" onPress={() => navigation.goBack()} />
