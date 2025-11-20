@@ -68,7 +68,7 @@ export function BirthDataScreen() {
     setIsSubmitting(true);
     try {
       await createOrUpdateNatalChart(payload);
-      toast.push({ message: 'Birth data saved. Generating your chart…', tone: 'success' });
+      toast.push({ message: 'Birth data saved. Generating your chart…', tone: 'info' });
       navigation.navigate('NatalChart');
     } catch (error) {
       console.error('Birth data submission failed', error);
