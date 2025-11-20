@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 
+import { EmptyState } from '@components/EmptyState';
 import { LoadingOverlay } from '@components/LoadingOverlay';
 import { MetalPanel } from '@components/MetalPanel';
 import { UserAvatar } from '@components/UserAvatar';
@@ -103,12 +104,12 @@ export function SoulMatchRecommendationsScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#fff" />
         }
         ListEmptyComponent={
-          <View style={styles.empty}>
-            <Text style={styles.emptyTitle}>No matches yet</Text>
-            <Text style={styles.emptySubtitle}>
-              Once your chart and profile are complete, recommendations will appear here.
-            </Text>
-          </View>
+          <EmptyState
+            title="No matches yet"
+            description="Once your chart and profile are complete, recommendations will appear here."
+            actionLabel="Refresh"
+            onAction={load}
+          />
         }
       />
     </View>
@@ -171,20 +172,5 @@ const styles = StyleSheet.create({
     color: theme.palette.pearl,
     fontSize: 12,
     fontWeight: '600',
-  },
-  empty: {
-    alignItems: 'center',
-    gap: theme.spacing.sm,
-    paddingVertical: theme.spacing.xl,
-  },
-  emptyTitle: {
-    color: theme.palette.platinum,
-    ...theme.typography.subtitle,
-  },
-  emptySubtitle: {
-    color: theme.palette.silver,
-    ...theme.typography.body,
-    textAlign: 'center',
-    paddingHorizontal: theme.spacing.md,
   },
 });
