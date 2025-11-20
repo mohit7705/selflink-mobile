@@ -14,6 +14,7 @@ import { ErrorState } from '@components/ErrorState';
 import { LoadingOverlay } from '@components/LoadingOverlay';
 import { MetalButton } from '@components/MetalButton';
 import { MetalPanel } from '@components/MetalPanel';
+import { AstroWheel } from '@components/astro/AstroWheel';
 import { MentorStackParamList } from '@navigation/types';
 import { getMyNatalChart } from '@services/api/astro';
 import { NatalChart, PlanetPosition } from '@schemas/astro';
@@ -127,6 +128,11 @@ export function NatalChartScreen() {
             label="Ascendant"
             data={houses['1'] ? { lon: houses['1'].cusp_lon, sign: houses['1'].sign } : undefined}
           />
+        </MetalPanel>
+
+        <MetalPanel>
+          <Text style={styles.sectionTitle}>Chart Wheel</Text>
+          <AstroWheel planets={planets} houses={houses} />
         </MetalPanel>
 
         <MetalPanel>
