@@ -21,10 +21,11 @@ export function MentorHomeScreen() {
       <MetalPanel glow>
         <Text style={styles.cardTitle}>Build your natal chart</Text>
         <Text style={styles.cardText}>
-          Precise birth data powers your natal mentor and daily guidance.
+          Use your saved registration birth details or edit them before generating your
+          chart.
         </Text>
         <MetalButton
-          title="Enter Birth Data"
+          title="Birth Data Options"
           onPress={() => navigation.navigate('BirthData')}
         />
         <MetalButton

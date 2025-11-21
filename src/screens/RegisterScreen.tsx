@@ -26,6 +26,12 @@ export function RegisterScreen() {
   const [intention, setIntention] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [birthDate, setBirthDate] = useState('');
+  const [birthTime, setBirthTime] = useState('');
+  const [birthCity, setBirthCity] = useState('');
+  const [birthCountry, setBirthCountry] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -33,7 +39,18 @@ export function RegisterScreen() {
     if (isSubmitting) {
       return;
     }
-    if (!email || !password || !confirmPassword || !handle) {
+    if (
+      !email ||
+      !password ||
+      !confirmPassword ||
+      !handle ||
+      !firstName ||
+      !lastName ||
+      !birthDate ||
+      !birthTime ||
+      !birthCity ||
+      !birthCountry
+    ) {
       toast.push({
         message: 'Please fill out all required fields.',
         tone: 'error',
@@ -59,6 +76,12 @@ export function RegisterScreen() {
         handle,
         fullName,
         intention,
+        first_name: firstName,
+        last_name: lastName,
+        birth_date: birthDate,
+        birth_time: birthTime,
+        birth_place_city: birthCity,
+        birth_place_country: birthCountry,
       });
       await signIn(result);
       toast.push({ message: 'Welcome to Selflink!', tone: 'info', duration: 3000 });
@@ -108,17 +131,59 @@ export function RegisterScreen() {
             <TextInput
               placeholder="Email"
               placeholderTextColor={theme.palette.silver}
-              autoCapitalize="none"
-              keyboardType="email-address"
-              value={email}
-              onChangeText={setEmail}
-              style={styles.input}
-            />
-            <TextInput
-              placeholder="Full Name"
-              placeholderTextColor={theme.palette.silver}
-              value={fullName}
-              onChangeText={setFullName}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            value={email}
+            onChangeText={setEmail}
+            style={styles.input}
+          />
+          <TextInput
+            placeholder="First name"
+            placeholderTextColor={theme.palette.silver}
+            value={firstName}
+            onChangeText={setFirstName}
+            style={styles.input}
+          />
+          <TextInput
+            placeholder="Last name"
+            placeholderTextColor={theme.palette.silver}
+            value={lastName}
+            onChangeText={setLastName}
+            style={styles.input}
+          />
+          <TextInput
+            placeholder="Birth date (YYYY-MM-DD)"
+            placeholderTextColor={theme.palette.silver}
+            value={birthDate}
+            onChangeText={setBirthDate}
+            style={styles.input}
+          />
+          <TextInput
+            placeholder="Birth time (HH:MM, 24h)"
+            placeholderTextColor={theme.palette.silver}
+            value={birthTime}
+            onChangeText={setBirthTime}
+            style={styles.input}
+          />
+          <TextInput
+            placeholder="Birth city"
+            placeholderTextColor={theme.palette.silver}
+            value={birthCity}
+            onChangeText={setBirthCity}
+            style={styles.input}
+          />
+          <TextInput
+            placeholder="Birth country"
+            placeholderTextColor={theme.palette.silver}
+            value={birthCountry}
+            onChangeText={setBirthCountry}
+            style={styles.input}
+          />
+          <TextInput
+            placeholder="Full Name"
+            placeholderTextColor={theme.palette.silver}
+            value={fullName}
+            onChangeText={setFullName}
               style={styles.input}
             />
             <TextInput

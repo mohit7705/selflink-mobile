@@ -16,39 +16,106 @@ import { MetalPanel } from '@components/MetalPanel';
 import { useToast } from '@context/ToastContext';
 import { MentorStackParamList } from '@navigation/types';
 import { BirthDataPayload } from '@schemas/astro';
+import { useAuthStore } from '@store/authStore';
 import { createOrUpdateNatalChart } from '@services/api/astro';
 import { theme } from '@theme/index';
-
-const TIMEZONE_FALLBACK = 'UTC';
 
 export function BirthDataScreen() {
   const navigation =
     useNavigation<NativeStackNavigationProp<MentorStackParamList, 'BirthData'>>();
   const toast = useToast();
+  const personalMap = useAuthStore((state) => state.personalMap);
+  const currentUser = useAuthStore((state) => state.currentUser);
+  const fetchProfile = useAuthStore((state) => state.fetchProfile);
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [timeOfBirth, setTimeOfBirth] = useState('');
-  const [timezone, setTimezone] = useState(TIMEZONE_FALLBACK);
   const [city, setCity] = useState('');
   const [country, setCountry] = useState('');
-  const [latitude, setLatitude] = useState('');
-  const [longitude, setLongitude] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [mode, setMode] = useState<'choice' | 'form'>('choice');
 
   useEffect(() => {
-    try {
-      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      if (tz) {
-        setTimezone(tz);
+    const loadProfile = async () => {
+      if (!personalMap) {
+        try {
+          await fetchProfile();
+        } catch (error) {
+          console.warn('BirthDataScreen: failed to refresh profile', error);
+        }
       }
-    } catch (error) {
-      console.warn('BirthDataScreen: failed to resolve timezone', error);
-      setTimezone(TIMEZONE_FALLBACK);
+    };
+    loadProfile().catch(() => undefined);
+  }, [fetchProfile, personalMap]);
+
+  useEffect(() => {
+    const splitBirthPlace = (birthPlace?: string | null) => {
+      if (!birthPlace) {
+        return { city: '', country: '' };
+      }
+      const parts = birthPlace.split(',').map((part) => part.trim()).filter(Boolean);
+      return {
+        city: parts[0] ?? '',
+        country: parts[1] ?? '',
+      };
+    };
+
+    const resolvedCity =
+      personalMap?.birth_place_city || splitBirthPlace(currentUser?.birth_place).city;
+    const resolvedCountry =
+      personalMap?.birth_place_country || splitBirthPlace(currentUser?.birth_place).country;
+    const resolvedDate = personalMap?.birth_date || currentUser?.birth_date || '';
+    const resolvedTime = personalMap?.birth_time || currentUser?.birth_time || '';
+
+    setFirstName(personalMap?.first_name || '');
+    setLastName(personalMap?.last_name || '');
+    setCity(resolvedCity || '');
+    setCountry(resolvedCountry || '');
+    setDateOfBirth(resolvedDate || '');
+    setTimeOfBirth(resolvedTime ? resolvedTime.slice(0, 5) : '');
+  }, [currentUser?.birth_date, currentUser?.birth_place, currentUser?.birth_time, personalMap]);
+
+  const hasStoredBirth = useMemo(() => {
+    return Boolean(dateOfBirth && timeOfBirth && city && country);
+  }, [city, country, dateOfBirth, timeOfBirth]);
+
+  useEffect(() => {
+    if (!hasStoredBirth) {
+      setMode('form');
     }
-  }, []);
+  }, [hasStoredBirth]);
 
   const isSubmitDisabled = useMemo(() => {
-    return !dateOfBirth || !timeOfBirth || !timezone || isSubmitting;
-  }, [dateOfBirth, timeOfBirth, timezone, isSubmitting]);
+    return !dateOfBirth || !timeOfBirth || !city || !country || isSubmitting;
+  }, [city, country, dateOfBirth, isSubmitting, timeOfBirth]);
+
+  const handleUseRegistrationData = async () => {
+    setIsSubmitting(true);
+    const payload: BirthDataPayload = { source: 'profile' };
+    try {
+      await createOrUpdateNatalChart(payload);
+      toast.push({
+        message: 'Using your saved birth data. Generating your chart…',
+        tone: 'info',
+      });
+      navigation.navigate('NatalChart');
+    } catch (error) {
+      console.error('Birth data submission failed (profile source)', error);
+      toast.push({
+        message:
+          error instanceof Error &&
+          error.message.includes('No birth data stored in profile')
+            ? 'We need your birth details. Please fill them in.'
+            : 'Unable to use your saved birth data. Please review your details.',
+        tone: 'error',
+        duration: 6000,
+      });
+      setMode('form');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleSubmit = async () => {
     if (isSubmitDisabled) {
@@ -56,13 +123,13 @@ export function BirthDataScreen() {
     }
 
     const payload: BirthDataPayload = {
-      date_of_birth: dateOfBirth,
-      time_of_birth: timeOfBirth,
-      timezone,
-      city: city || undefined,
-      country: country || undefined,
-      latitude: latitude ? Number(latitude) : undefined,
-      longitude: longitude ? Number(longitude) : undefined,
+      source: 'form',
+      birth_date: dateOfBirth,
+      birth_time: timeOfBirth,
+      city,
+      country,
+      first_name: firstName || undefined,
+      last_name: lastName || undefined,
     };
 
     setIsSubmitting(true);
@@ -73,7 +140,8 @@ export function BirthDataScreen() {
     } catch (error) {
       console.error('Birth data submission failed', error);
       toast.push({
-        message: 'Unable to save birth data. Please check the fields and try again.',
+        message:
+          'Unable to save birth data. Please confirm the date, time, city, and country.',
         tone: 'error',
         duration: 6000,
       });
@@ -91,76 +159,85 @@ export function BirthDataScreen() {
         <ScrollView contentContainerStyle={styles.content}>
           <Text style={styles.headline}>Birth Data</Text>
           <Text style={styles.subtitle}>
-            Precise birth details help us compute your Ascendant and houses. Exact time
-            and timezone improve accuracy.
+            Precise birth details help us compute your Ascendant and houses. You can use
+            the info you shared at registration or correct it here.
           </Text>
 
-          <MetalPanel glow>
-            <Text style={styles.panelTitle}>Required</Text>
-            <TextInput
-              placeholder="Date of birth (YYYY-MM-DD)"
-              placeholderTextColor={theme.palette.silver}
-              value={dateOfBirth}
-              onChangeText={setDateOfBirth}
-              style={styles.input}
-            />
-            <TextInput
-              placeholder="Time of birth (HH:MM, 24h)"
-              placeholderTextColor={theme.palette.silver}
-              value={timeOfBirth}
-              onChangeText={setTimeOfBirth}
-              style={styles.input}
-            />
-            <TextInput
-              placeholder="Timezone (e.g., America/New_York)"
-              placeholderTextColor={theme.palette.silver}
-              value={timezone}
-              onChangeText={setTimezone}
-              style={styles.input}
-            />
+          {mode === 'choice' ? (
+            <MetalPanel glow>
+              <Text style={styles.panelTitle}>Use saved details?</Text>
+              <Text style={styles.bodyText}>
+                We can use the birth info from your registration, or you can correct it
+                now.
+              </Text>
+              <MetalButton
+                title={isSubmitting ? 'Using registration data…' : 'Use registration data'}
+                onPress={handleUseRegistrationData}
+                disabled={isSubmitting}
+              />
+              <MetalButton title="Edit / correct data" onPress={() => setMode('form')} />
+            </MetalPanel>
+          ) : null}
 
-            <Text style={styles.panelTitle}>Location</Text>
-            <TextInput
-              placeholder="City"
-              placeholderTextColor={theme.palette.silver}
-              value={city}
-              onChangeText={setCity}
-              style={styles.input}
-            />
-            <TextInput
-              placeholder="Country"
-              placeholderTextColor={theme.palette.silver}
-              value={country}
-              onChangeText={setCountry}
-              style={styles.input}
-            />
-            <TextInput
-              placeholder="Latitude (optional)"
-              placeholderTextColor={theme.palette.silver}
-              value={latitude}
-              onChangeText={setLatitude}
-              keyboardType="decimal-pad"
-              style={styles.input}
-            />
-            <TextInput
-              placeholder="Longitude (optional)"
-              placeholderTextColor={theme.palette.silver}
-              value={longitude}
-              onChangeText={setLongitude}
-              keyboardType="decimal-pad"
-              style={styles.input}
-            />
+          {mode === 'form' ? (
+            <MetalPanel glow>
+              <Text style={styles.panelTitle}>Required</Text>
+              <TextInput
+                placeholder="First name"
+                placeholderTextColor={theme.palette.silver}
+                value={firstName}
+                onChangeText={setFirstName}
+                style={styles.input}
+              />
+              <TextInput
+                placeholder="Last name"
+                placeholderTextColor={theme.palette.silver}
+                value={lastName}
+                onChangeText={setLastName}
+                style={styles.input}
+              />
+              <TextInput
+                placeholder="Date of birth (YYYY-MM-DD)"
+                placeholderTextColor={theme.palette.silver}
+                value={dateOfBirth}
+                onChangeText={setDateOfBirth}
+                style={styles.input}
+              />
+              <TextInput
+                placeholder="Time of birth (HH:MM, 24h)"
+                placeholderTextColor={theme.palette.silver}
+                value={timeOfBirth}
+                onChangeText={setTimeOfBirth}
+                style={styles.input}
+              />
 
-            <MetalButton
-              title={isSubmitting ? 'Submitting…' : 'Save & Generate Chart'}
-              onPress={handleSubmit}
-              disabled={isSubmitDisabled}
-            />
-            <Text style={styles.hint}>
-              Tip: if you are unsure of the exact time, use your best estimate. You can
-              update later.
-            </Text>
-          </MetalPanel>
+              <Text style={styles.panelTitle}>Location</Text>
+              <TextInput
+                placeholder="City"
+                placeholderTextColor={theme.palette.silver}
+                value={city}
+                onChangeText={setCity}
+                style={styles.input}
+              />
+              <TextInput
+                placeholder="Country"
+                placeholderTextColor={theme.palette.silver}
+                value={country}
+                onChangeText={setCountry}
+                style={styles.input}
+              />
+
+              <MetalButton
+                title={isSubmitting ? 'Submitting…' : 'Save & Generate Chart'}
+                onPress={handleSubmit}
+                disabled={isSubmitDisabled}
+              />
+              <Text style={styles.hint}>
+                Tip: if you are unsure of the exact time, use your best estimate. You can
+                update later.
+              </Text>
+            </MetalPanel>
+          ) : null}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -193,6 +270,11 @@ const styles = StyleSheet.create({
     ...theme.typography.subtitle,
     marginTop: theme.spacing.md,
     marginBottom: theme.spacing.sm,
+  },
+  bodyText: {
+    color: theme.palette.silver,
+    ...theme.typography.body,
+    marginBottom: theme.spacing.md,
   },
   input: {
     borderRadius: theme.radii.md,

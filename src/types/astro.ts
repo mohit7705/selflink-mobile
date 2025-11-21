@@ -1,12 +1,18 @@
-export type BirthDataPayload = {
-  date_of_birth: string;
-  time_of_birth: string;
-  timezone: string;
-  city?: string;
-  country?: string;
-  latitude?: number;
-  longitude?: number;
+export type BirthDataProfilePayload = {
+  source: 'profile';
 };
+
+export type BirthDataFormPayload = {
+  source: 'form';
+  birth_date: string;
+  birth_time: string;
+  city: string;
+  country: string;
+  first_name?: string;
+  last_name?: string;
+};
+
+export type BirthDataPayload = BirthDataProfilePayload | BirthDataFormPayload;
 
 export type PlanetPosition = {
   lon: number;
