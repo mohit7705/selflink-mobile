@@ -1,3 +1,5 @@
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -10,6 +12,7 @@ import {
   View,
 } from 'react-native';
 
+import type { OnboardingStackParamList, RootStackParamList } from '@navigation/types';
 import { useAuthStore } from '@store/authStore';
 import { theme } from '@theme';
 
@@ -23,6 +26,8 @@ const initialFormState = {
 type FormState = typeof initialFormState;
 
 export function PersonalMapScreen() {
+  const navigation =
+    useNavigation<NativeStackNavigationProp<OnboardingStackParamList, 'PersonalMap'>>();
   const personalMap = useAuthStore((state) => state.personalMap);
   const savePersonalMap = useAuthStore((state) => state.savePersonalMap);
   const hasCompletedPersonalMap = useAuthStore((state) => state.hasCompletedPersonalMap);
@@ -75,7 +80,7 @@ export function PersonalMapScreen() {
     }
     setSubmitting(true);
     try {
-      await savePersonalMap({
+      const profile = await savePersonalMap({
         ...form,
         birth_time: form.birth_time,
       });
@@ -85,6 +90,14 @@ export function PersonalMapScreen() {
           ? 'Birth information updated.'
           : 'Your personal map is complete.',
       );
+      const parentNav = navigation.getParent<NativeStackNavigationProp<RootStackParamList>>();
+      const isComplete = profile?.is_complete ?? true;
+      if (isComplete && parentNav) {
+        parentNav.reset({
+          index: 0,
+          routes: [{ name: 'Main' } as never],
+        });
+      }
     } catch (error) {
       console.warn('personal map save failed', error);
       Alert.alert('Error', 'We were unable to save your profile.');
