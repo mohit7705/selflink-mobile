@@ -20,6 +20,7 @@ export interface RegisterPayload {
   password: string;
   name: string;
   handle?: string;
+  username?: string;
   intention?: string;
 }
 

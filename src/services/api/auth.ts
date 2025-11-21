@@ -16,6 +16,7 @@ type Credentials = {
 export type RegisterPayload = Credentials & {
   handle?: string;
   name: string;
+  username?: string;
   fullName?: string;
   intention?: string;
 };
@@ -58,7 +59,7 @@ export async function loginWithPassword(
 
 export async function registerUser(payload: RegisterPayload): Promise<LoginResponse> {
   try {
-    const { email, password, handle, name, fullName, intention } = payload;
+    const { email, password, handle, username, name, fullName, intention } = payload;
     const result = await apiClient.request<LoginResponse>('/api/v1/auth/register/', {
       method: 'POST',
       auth: false,
@@ -66,8 +67,9 @@ export async function registerUser(payload: RegisterPayload): Promise<LoginRespo
         email,
         password,
         handle,
+        username: username ?? handle,
         name,
-        fullName,
+        fullName: fullName ?? name,
         intention,
       },
     });

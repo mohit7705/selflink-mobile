@@ -42,6 +42,7 @@ export function RegisterScreen() {
         password,
         name,
         handle: handle || undefined,
+        username: handle || undefined,
       });
     } catch (err) {
       console.warn('register failed', err);

@@ -68,12 +68,12 @@ export function PersonalMapScreen() {
     }
     const nextErrors: typeof errors = {};
     const dateOk = /^\d{4}-\d{2}-\d{2}$/.test(form.birth_date);
-    const timeOk = /^([01]\d|2[0-3]):[0-5]\d$/.test(form.birth_time);
+    const timeOk = /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/.test(form.birth_time);
     if (!dateOk) {
       nextErrors.birth_date = 'Use YYYY-MM-DD format.';
     }
     if (!timeOk) {
-      nextErrors.birth_time = 'Use 24h time, HH:MM.';
+      nextErrors.birth_time = 'Use 24h time, HH:MM or HH:MM:SS.';
     }
     if (Object.keys(nextErrors).length) {
       setErrors(nextErrors);
@@ -91,16 +91,10 @@ export function PersonalMapScreen() {
           ? 'Birth information updated.'
           : 'Your personal map is complete.',
       );
-      const parentNav =
+      const rootNav =
         navigation.getParent<NativeStackNavigationProp<RootStackParamList>>() ?? navigation;
-      const isComplete = profile?.is_complete ?? true;
-      if (isComplete) {
-        setHasCompleted({ hasCompletedPersonalMap: true });
-        parentNav.reset({
-          index: 0,
-          routes: [{ name: 'Main' } as never],
-        });
-      }
+      setHasCompleted({ hasCompletedPersonalMap: true });
+      rootNav.navigate('Main');
     } catch (error) {
       console.warn('personal map save failed', error);
       Alert.alert('Error', 'We were unable to save your profile.');

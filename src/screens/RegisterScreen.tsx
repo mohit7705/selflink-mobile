@@ -55,6 +55,7 @@ export function RegisterScreen() {
         email,
         password,
         handle,
+        username: handle || undefined,
       });
       await signIn(result);
       toast.push({ message: 'Welcome to Selflink!', tone: 'info', duration: 3000 });
