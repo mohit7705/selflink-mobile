@@ -31,6 +31,7 @@ export function PersonalMapScreen() {
   const personalMap = useAuthStore((state) => state.personalMap);
   const savePersonalMap = useAuthStore((state) => state.savePersonalMap);
   const hasCompletedPersonalMap = useAuthStore((state) => state.hasCompletedPersonalMap);
+  const setHasCompleted = useAuthStore.setState;
   const [form, setForm] = useState<FormState>(initialFormState);
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -94,6 +95,7 @@ export function PersonalMapScreen() {
         navigation.getParent<NativeStackNavigationProp<RootStackParamList>>() ?? navigation;
       const isComplete = profile?.is_complete ?? true;
       if (isComplete) {
+        setHasCompleted({ hasCompletedPersonalMap: true });
         parentNav.reset({
           index: 0,
           routes: [{ name: 'Main' } as never],
