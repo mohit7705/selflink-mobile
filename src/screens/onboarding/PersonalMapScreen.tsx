@@ -90,9 +90,10 @@ export function PersonalMapScreen() {
           ? 'Birth information updated.'
           : 'Your personal map is complete.',
       );
-      const parentNav = navigation.getParent<NativeStackNavigationProp<RootStackParamList>>();
+      const parentNav =
+        navigation.getParent<NativeStackNavigationProp<RootStackParamList>>() ?? navigation;
       const isComplete = profile?.is_complete ?? true;
-      if (isComplete && parentNav) {
+      if (isComplete) {
         parentNav.reset({
           index: 0,
           routes: [{ name: 'Main' } as never],
