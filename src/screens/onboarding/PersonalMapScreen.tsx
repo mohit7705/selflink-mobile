@@ -114,7 +114,8 @@ export function PersonalMapScreen() {
           : 'Your personal map is complete.',
       );
       const rootNav =
-        navigation.getParent<NativeStackNavigationProp<RootStackParamList>>() ?? navigation;
+        navigation.getParent<NativeStackNavigationProp<RootStackParamList>>() ??
+        navigation;
       setHasCompleted({ hasCompletedPersonalMap: true });
       rootNav.navigate('Main');
     } catch (error) {

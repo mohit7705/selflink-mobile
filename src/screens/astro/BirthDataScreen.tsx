@@ -65,9 +65,10 @@ export function BirthDataScreen() {
     };
 
     const resolvedCity =
-      personalMap?.birth_place_city || splitBirthPlace(currentUser?.birth_place).city;
+      personalMap?.birth_place_city ?? splitBirthPlace(currentUser?.birth_place).city;
     const resolvedCountry =
-      personalMap?.birth_place_country || splitBirthPlace(currentUser?.birth_place).country;
+      personalMap?.birth_place_country ??
+      splitBirthPlace(currentUser?.birth_place).country;
     const resolvedDate = personalMap?.birth_date || currentUser?.birth_date || '';
     const resolvedTime = personalMap?.birth_time || currentUser?.birth_time || '';
 
