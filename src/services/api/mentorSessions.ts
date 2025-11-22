@@ -1,66 +1,53 @@
 import { apiClient } from '@services/api/client';
 
-export type MentorSession = {
+export type MentorChatPayload = {
+  message: string;
+  mode?: string;
+  language?: string | null;
+};
+
+export type MentorChatMeta = {
+  user_flags?: Record<string, unknown>;
+  mentor_flags?: Record<string, unknown>;
+};
+
+export type MentorChatResponse = {
+  session_id: number;
+  user_message_id: number;
+  mentor_message_id: number;
+  mentor_reply: string;
+  mode?: string;
+  language?: string | null;
+  meta: MentorChatMeta;
+};
+
+export type MentorHistoryMessage = {
   id: number;
-  question: string;
-  answer: string;
-  sentiment: string;
+  session_id: number;
+  role: 'user' | 'mentor';
+  content: string;
+  meta: Record<string, unknown> | null;
   created_at: string;
 };
 
-export type MentorSessionListResponse = {
+export type MentorHistoryResponse = {
   next: string | null;
   previous: string | null;
-  results: MentorSession[];
+  results: MentorHistoryMessage[];
 };
 
-export type MentorSessionQuery = {
-  cursor?: string;
-  ordering?: string;
-  page_size?: number;
-  search?: string;
-};
-
-export type MentorSessionAskPayload = {
-  question: string;
-  context?: Record<string, unknown>;
-};
-
-export type MentorSessionAskResponse = MentorSession;
-
-export async function listMentorSessions(
-  params: MentorSessionQuery = {},
-): Promise<MentorSessionListResponse> {
-  const searchParams = new URLSearchParams();
-  if (params.cursor) {
-    searchParams.set('cursor', params.cursor);
-  }
-  if (params.ordering) {
-    searchParams.set('ordering', params.ordering);
-  }
-  if (params.page_size) {
-    searchParams.set('page_size', String(params.page_size));
-  }
-  if (params.search) {
-    searchParams.set('search', params.search);
-  }
-
-  const qs = searchParams.toString();
-  const path = `/api/v1/mentor/sessions/${qs ? `?${qs}` : ''}`;
-  return apiClient.request<MentorSessionListResponse>(path, { method: 'GET' });
-}
-
-export async function getMentorSession(id: number): Promise<MentorSession> {
-  return apiClient.request<MentorSession>(`/api/v1/mentor/sessions/${id}/`, {
-    method: 'GET',
-  });
-}
-
-export async function askMentor(
-  payload: MentorSessionAskPayload,
-): Promise<MentorSessionAskResponse> {
-  return apiClient.request<MentorSessionAskResponse>('/api/v1/mentor/sessions/ask/', {
+export async function sendMentorChat(
+  payload: MentorChatPayload,
+): Promise<MentorChatResponse> {
+  return apiClient.request<MentorChatResponse>('/api/v1/mentor/chat/', {
     method: 'POST',
     body: payload,
   });
+}
+
+export async function fetchMentorHistory(
+  cursor?: string | null,
+): Promise<MentorHistoryResponse> {
+  const path = cursor ?? '/api/v1/mentor/history/';
+  return apiClient.request<MentorHistoryResponse>(path, { method: 'GET' });
 }

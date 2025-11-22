@@ -57,7 +57,7 @@ src/
 - `src/services/api/matrix.ts` fetches `/api/v1/matrix/profile/` and posts to `/api/v1/matrix/sync/` so the SoulMatch/Mentor areas can share the same profile contract as the backend evolves.
 - `src/services/api/media.ts` offers list + CRUD helpers for `/api/v1/media/` and `/api/v1/media/{id}/`, keeping uploads/metadata updates consistent across clients.
 - `src/services/api/mentor.ts` exposes CRUD helpers for `/api/v1/mentor/profile/` so mentor personalization can be managed from mobile or desktop with the same code.
-- `src/services/api/mentorSessions.ts` wraps `/api/v1/mentor/sessions/`, `/api/v1/mentor/sessions/{id}/`, and `/api/v1/mentor/sessions/ask/` so questions, answers, and logs stay in sync across clients.
+- `src/services/api/mentorSessions.ts` wraps `/api/v1/mentor/chat/` and `/api/v1/mentor/history/` so mentor chat, replies, and history stay in sync across clients.
 - `src/services/api/mentorTasks.ts` centralizes `/api/v1/mentor/tasks/`, `/api/v1/mentor/tasks/{id}/`, and `/api/v1/mentor/tasks/today/` calls so daily task queues use shared code.
 - `src/services/api/messages.ts` provides list + CRUD helpers for `/api/v1/messages/` so chats and inbox features rely on a single shared wrapper.
 - `src/services/api/moderationAdminReports.ts` lets moderators list and manage `/api/v1/moderation/admin/reports/` entries (full CRUD) from any client.

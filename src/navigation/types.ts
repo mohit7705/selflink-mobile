@@ -42,6 +42,7 @@ export type MentorStackParamList = {
   NatalChart: undefined;
   NatalMentor: undefined;
   DailyMentor: undefined;
+  MentorChat: undefined;
 };
 
 export type SoulMatchStackParamList = {

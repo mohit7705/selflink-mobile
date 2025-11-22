@@ -16,6 +16,7 @@ import { InboxScreen } from '@screens/InboxScreen';
 import { DailyMentorScreen } from '@screens/mentor/DailyMentorScreen';
 import { MentorHomeScreen } from '@screens/mentor/MentorHomeScreen';
 import { NatalMentorScreen } from '@screens/mentor/NatalMentorScreen';
+import { MentorChatScreen } from '@screens/mentor/MentorChatScreen';
 import { ChatScreen } from '@screens/messaging/ChatScreen';
 import { ThreadsScreen } from '@screens/messaging/ThreadsScreen';
 import { NotificationsScreen } from '@screens/notifications/NotificationsScreen';
@@ -210,6 +211,11 @@ function MentorStackNavigator() {
         name="DailyMentor"
         component={DailyMentorScreen}
         options={{ title: 'Daily Mentor' }}
+      />
+      <MentorStack.Screen
+        name="MentorChat"
+        component={MentorChatScreen}
+        options={{ title: 'AI Mentor' }}
       />
     </MentorStack.Navigator>
   );

@@ -35,6 +35,17 @@ export function MentorHomeScreen() {
       </MetalPanel>
 
       <MetalPanel>
+        <Text style={styles.cardTitle}>AI Mentor Chat</Text>
+        <Text style={styles.cardText}>
+          Talk to your mentor with session-aware chat and keep your history in one place.
+        </Text>
+        <MetalButton
+          title="Open Mentor Chat"
+          onPress={() => navigation.navigate('MentorChat')}
+        />
+      </MetalPanel>
+
+      <MetalPanel>
         <Text style={styles.cardTitle}>AI Mentor Readings</Text>
         <MetalButton
           title="Natal Mentor"
