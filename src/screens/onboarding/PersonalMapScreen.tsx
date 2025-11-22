@@ -133,6 +133,18 @@ export function PersonalMapScreen() {
             Tell us more so we can align your astro-matrix intelligence.
           </Text>
           <Input
+            label="First name"
+            value={form.first_name}
+            onChangeText={(text) => handleChange('first_name', text)}
+            required
+          />
+          <Input
+            label="Last name"
+            value={form.last_name}
+            onChangeText={(text) => handleChange('last_name', text)}
+            required
+          />
+          <Input
             label="Birth date (YYYY-MM-DD)"
             value={form.birth_date}
             onChangeText={(text) => handleChange('birth_date', text)}
