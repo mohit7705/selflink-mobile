@@ -15,6 +15,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useToast } from '@context/ToastContext';
+import { MentorStackParamList } from '@navigation/types';
 import {
   createDailyMentorEntry,
   fetchDailyMentorHistory,
@@ -22,12 +23,13 @@ import {
   type DailyMentorHistoryItem,
 } from '@services/api/mentor';
 import { useAuthStore } from '@store/authStore';
-import { MentorStackParamList } from '@navigation/types';
 import { theme } from '@theme/index';
 
 const todayString = () => new Date().toISOString().slice(0, 10);
 const makePreview = (value: string) => {
-  if (!value) return '';
+  if (!value) {
+    return '';
+  }
   return value.length > 100 ? `${value.slice(0, 100).trim()}…` : value;
 };
 
@@ -98,13 +100,18 @@ export function DailyMentorScreen() {
         reply_preview: makePreview(response.reply),
       };
       setHistory((current) => {
-        const filtered = current.filter((item) => item.session_id !== response.session_id);
+        const filtered = current.filter(
+          (item) => item.session_id !== response.session_id,
+        );
         return [historyItem, ...filtered].slice(0, 7);
       });
       toast.push({ message: 'Reflection saved', tone: 'info', duration: 1200 });
     } catch (error) {
       console.error('DailyMentorScreen: failed to submit entry', error);
-      toast.push({ message: 'Could not save your entry. Please try again.', tone: 'error' });
+      toast.push({
+        message: 'Could not save your entry. Please try again.',
+        tone: 'error',
+      });
     } finally {
       setSubmitting(false);
     }
@@ -142,7 +149,78 @@ export function DailyMentorScreen() {
     [openSession],
   );
 
-  const headerComponent = (
+  const hasHistory = history.length > 0;
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.flex}
+        keyboardVerticalOffset={insets.top + 12}
+      >
+        <FlatList
+          data={history}
+          keyExtractor={(item) => String(item.session_id)}
+          renderItem={renderHistoryItem}
+          ListHeaderComponent={
+            <DailyMentorHeader
+              entry={entry}
+              entryDate={entryDate}
+              submitting={submitting}
+              latestReply={latestReply}
+              onChangeEntry={setEntry}
+              onChangeEntryDate={setEntryDate}
+              onSubmit={handleSubmit}
+              onRefresh={onRefresh}
+              historyLoading={historyLoading}
+              hasHistory={hasHistory}
+            />
+          }
+          contentContainerStyle={[
+            styles.listContent,
+            { paddingBottom: theme.spacing.xl + insets.bottom },
+          ]}
+          ItemSeparatorComponent={Separator}
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          ListFooterComponent={
+            historyLoading && history.length === 0 ? null : (
+              <View style={{ height: theme.spacing.md }} />
+            )
+          }
+          showsVerticalScrollIndicator={false}
+        />
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+type HeaderProps = {
+  entry: string;
+  entryDate: string;
+  submitting: boolean;
+  latestReply: DailyMentorEntryResponse | null;
+  onChangeEntry: (value: string) => void;
+  onChangeEntryDate: (value: string) => void;
+  onSubmit: () => void;
+  onRefresh: () => void;
+  historyLoading: boolean;
+  hasHistory: boolean;
+};
+
+function DailyMentorHeader({
+  entry,
+  entryDate,
+  submitting,
+  latestReply,
+  onChangeEntry,
+  onChangeEntryDate,
+  onSubmit,
+  onRefresh,
+  historyLoading,
+  hasHistory,
+}: HeaderProps) {
+  return (
     <View style={styles.content}>
       <View style={styles.headerBlock}>
         <View style={styles.pill}>
@@ -163,7 +241,7 @@ export function DailyMentorScreen() {
           multiline
           scrollEnabled
           value={entry}
-          onChangeText={setEntry}
+          onChangeText={onChangeEntry}
           textAlignVertical="top"
         />
 
@@ -173,19 +251,25 @@ export function DailyMentorScreen() {
             <TextInput
               style={styles.dateInput}
               value={entryDate}
-              onChangeText={setEntryDate}
+              onChangeText={onChangeEntryDate}
               placeholder="YYYY-MM-DD"
               placeholderTextColor={theme.palette.silver}
             />
           </View>
-          <TouchableOpacity onPress={() => setEntryDate(todayString())} style={styles.todayButton}>
+          <TouchableOpacity
+            onPress={() => onChangeEntryDate(todayString())}
+            style={styles.todayButton}
+          >
             <Text style={styles.todayText}>Today</Text>
           </TouchableOpacity>
         </View>
 
         <TouchableOpacity
-          style={[styles.submitButton, !entry.trim() || submitting ? styles.submitButtonDisabled : null]}
-          onPress={handleSubmit}
+          style={[
+            styles.submitButton,
+            !entry.trim() || submitting ? styles.submitButtonDisabled : null,
+          ]}
+          onPress={onSubmit}
           disabled={!entry.trim() || submitting}
         >
           {submitting ? (
@@ -205,7 +289,10 @@ export function DailyMentorScreen() {
               .split('\n')
               .filter(Boolean)
               .map((line, idx) => (
-                <View style={styles.bulletRow} key={`${latestReply.session_id}-line-${idx}`}>
+                <View
+                  style={styles.bulletRow}
+                  key={`${latestReply.session_id}-line-${idx}`}
+                >
                   <Text style={styles.bullet}>•</Text>
                   <Text style={styles.bulletText}>{line.trim()}</Text>
                 </View>
@@ -224,44 +311,18 @@ export function DailyMentorScreen() {
         <View style={[styles.historyPlaceholder, styles.centered]}>
           <ActivityIndicator color={theme.palette.platinum} />
         </View>
-      ) : history.length === 0 ? (
+      ) : !hasHistory ? (
         <View style={styles.historyPlaceholder}>
-          <Text style={styles.subtitle}>No entries yet. Your first note will show here.</Text>
+          <Text style={styles.subtitle}>
+            No entries yet. Your first note will show here.
+          </Text>
         </View>
       ) : null}
     </View>
   );
-
-  return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.flex}
-        keyboardVerticalOffset={insets.top + 12}
-      >
-        <FlatList
-          data={history}
-          keyExtractor={(item) => String(item.session_id)}
-          renderItem={renderHistoryItem}
-          ListHeaderComponent={headerComponent}
-          contentContainerStyle={[
-            styles.listContent,
-            { paddingBottom: theme.spacing.xl + insets.bottom },
-          ]}
-          ItemSeparatorComponent={() => <View style={{ height: theme.spacing.sm }} />}
-          refreshing={refreshing}
-          onRefresh={onRefresh}
-          ListFooterComponent={
-            historyLoading && history.length === 0 ? null : (
-              <View style={{ height: theme.spacing.md }} />
-            )
-          }
-          showsVerticalScrollIndicator={false}
-        />
-      </KeyboardAvoidingView>
-    </SafeAreaView>
-  );
 }
+
+const Separator = () => <View style={{ height: theme.spacing.sm }} />;
 
 const styles = StyleSheet.create({
   container: {

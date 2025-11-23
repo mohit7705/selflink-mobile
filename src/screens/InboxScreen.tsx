@@ -21,10 +21,7 @@ import { useToast } from '@context/ToastContext';
 import { useAuth } from '@hooks/useAuth';
 import { useThreads } from '@hooks/useThreads';
 import { useUsersDirectory } from '@hooks/useUsersDirectory';
-import type {
-  MainTabsParamList,
-  MessagesStackParamList,
-} from '@navigation/types';
+import type { MainTabsParamList, MessagesStackParamList } from '@navigation/types';
 import type { UserProfile } from '@services/api/user';
 import { theme } from '@theme/index';
 

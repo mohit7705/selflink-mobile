@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -15,8 +16,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import * as Clipboard from 'expo-clipboard';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { MentorMessageContent } from '@components/chat/MentorMessageContent';
 import { useToast } from '@context/ToastContext';
@@ -28,7 +28,6 @@ import {
 import { useAuthStore } from '@store/authStore';
 import { chatTheme } from '@theme/chat';
 import { theme } from '@theme/index';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type ChatMessage = Omit<MentorHistoryMessage, 'id'> & { id: string };
 
@@ -245,14 +244,14 @@ export function MentorChatScreen() {
   );
 
   const handleSend = useCallback(() => {
-    void sendMessage();
+    sendMessage().catch(() => undefined);
   }, [sendMessage]);
 
   const handleResend = useCallback(() => {
     if (!lastFailedMessage) {
       return;
     }
-    void sendMessage(lastFailedMessage);
+    sendMessage(lastFailedMessage).catch(() => undefined);
   }, [lastFailedMessage, sendMessage]);
 
   const renderMessage = useCallback(
@@ -407,7 +406,12 @@ export function MentorChatScreen() {
             )}
           </View>
 
-          <View style={[styles.inputWrapper, { paddingBottom: theme.spacing.md + insets.bottom }]}>
+          <View
+            style={[
+              styles.inputWrapper,
+              { paddingBottom: theme.spacing.md + insets.bottom },
+            ]}
+          >
             <View style={styles.inputBar}>
               <TextInput
                 style={[

@@ -143,18 +143,25 @@ export type DailyMentorSession = {
 export async function createDailyMentorEntry(
   payload: DailyMentorEntryPayload,
 ): Promise<DailyMentorEntryResponse> {
-  return apiClient.request('/api/v1/mentor/daily/entry/', { method: 'POST', body: payload });
+  return apiClient.request('/api/v1/mentor/daily/entry/', {
+    method: 'POST',
+    body: payload,
+  });
 }
 
 export async function fetchDailyMentorHistory(
   limit = 7,
 ): Promise<DailyMentorHistoryResponse> {
   const path = `/api/v1/mentor/daily/history/?limit=${limit}`;
-  return apiClient.request(path, { method: 'GET' });
+  return apiClient.request(path, {
+    method: 'GET',
+  });
 }
 
 export async function fetchDailyMentorSession(
   sessionId: number | string,
 ): Promise<DailyMentorSession> {
-  return apiClient.request(`/api/v1/mentor/daily/session/${sessionId}/`, { method: 'GET' });
+  return apiClient.request(`/api/v1/mentor/daily/session/${sessionId}/`, {
+    method: 'GET',
+  });
 }

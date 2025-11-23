@@ -12,8 +12,8 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useToast } from '@context/ToastContext';
-import { fetchDailyMentorSession, type DailyMentorSession } from '@services/api/mentor';
 import { MentorStackParamList } from '@navigation/types';
+import { fetchDailyMentorSession, type DailyMentorSession } from '@services/api/mentor';
 import { theme } from '@theme/index';
 
 type RouteProps = RouteProp<MentorStackParamList, 'DailyMentorEntry'>;

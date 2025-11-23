@@ -11,7 +11,9 @@ type RenderBlock =
   | { type: 'paragraph'; text: string }
   | { type: 'list'; items: string[] };
 
-const CONTROL_CHARS_REGEX = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g;
+// Remove ASCII control characters to avoid rendering artifacts.
+// eslint-disable-next-line no-control-regex
+const CONTROL_CHARS_REGEX = new RegExp('[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F\\x7F]', 'g');
 const BULLET_PREFIXES = ['- ', '• ', '* '];
 const COLLAPSE_LINE_THRESHOLD = 10;
 
@@ -69,7 +71,10 @@ const toBlocks = (text: string): RenderBlock[] => {
   const blocks: RenderBlock[] = [];
 
   paragraphs.forEach((paragraph) => {
-    const lines = paragraph.split('\n').map((line) => line.trim()).filter(Boolean);
+    const lines = paragraph
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean);
     if (lines.length === 0) {
       return;
     }

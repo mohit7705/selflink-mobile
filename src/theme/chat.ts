@@ -2,7 +2,11 @@ import { theme } from '../theme';
 
 export const chatTheme = {
   background: theme.palette.midnight,
-  backgroundGradient: ['rgba(7,12,28,0.92)', 'rgba(5,8,18,0.96)', 'rgba(2,6,23,1)'] as const,
+  backgroundGradient: [
+    'rgba(7,12,28,0.92)',
+    'rgba(5,8,18,0.96)',
+    'rgba(2,6,23,1)',
+  ] as const,
   surface: theme.palette.charcoal,
   header: {
     title: theme.palette.platinum,
