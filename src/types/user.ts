@@ -48,6 +48,8 @@ export interface PersonalMapProfile {
   birth_time: string | null;
   birth_place_country: string;
   birth_place_city: string;
+  birth_latitude?: number | null;
+  birth_longitude?: number | null;
   avatar_image: string | null;
   is_complete: boolean;
 }

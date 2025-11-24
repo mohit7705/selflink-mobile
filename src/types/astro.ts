@@ -10,6 +10,8 @@ export type BirthDataFormPayload = {
   country: string;
   first_name?: string;
   last_name?: string;
+  latitude?: number | null;
+  longitude?: number | null;
 };
 
 export type BirthDataPayload = BirthDataProfilePayload | BirthDataFormPayload;
