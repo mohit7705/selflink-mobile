@@ -1,19 +1,17 @@
 import { Ionicons } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { useNavigation } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useMemo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import type { ColorValue, StyleProp, TextStyle } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { CommunityScreen } from '@screens/CommunityScreen';
+import { BirthDataScreen } from '@screens/astro/BirthDataScreen';
+import { NatalChartScreen } from '@screens/astro/NatalChartScreen';
 import { CreatePostScreen } from '@screens/feed/CreatePostScreen';
 import { FeedScreen } from '@screens/feed/FeedScreen';
 import { PostDetailsScreen } from '@screens/feed/PostDetailsScreen';
-import { InboxScreen } from '@screens/InboxScreen';
-import { BirthDataScreen } from '@screens/astro/BirthDataScreen';
-import { NatalChartScreen } from '@screens/astro/NatalChartScreen';
 import { DailyMentorEntryScreen } from '@screens/mentor/DailyMentorEntryScreen';
 import { DailyMentorScreen } from '@screens/mentor/DailyMentorScreen';
 import { MentorChatScreen } from '@screens/mentor/MentorChatScreen';
@@ -21,7 +19,6 @@ import { MentorHomeScreen } from '@screens/mentor/MentorHomeScreen';
 import { NatalMentorScreen } from '@screens/mentor/NatalMentorScreen';
 import { ChatScreen } from '@screens/messaging/ChatScreen';
 import { ThreadsScreen } from '@screens/messaging/ThreadsScreen';
-import { NotificationsScreen } from '@screens/notifications/NotificationsScreen';
 import { PaymentsScreen } from '@screens/PaymentsScreen';
 import { ProfileEditScreen } from '@screens/profile/ProfileEditScreen';
 import { ProfileScreen } from '@screens/profile/ProfileScreen';
@@ -112,16 +109,17 @@ const createTabBarIcon =
     return <Ionicons name={iconName} size={size} color={color as ColorValue} />;
   };
 
-function FeedStackNavigator() {
-  const insets = useSafeAreaInsets();
+const FeedHeader = () => <TopBar title="Feed" rightLabel="Search" />;
+const MessagesHeader = () => <TopBar title="Messages" />;
 
+function FeedStackNavigator() {
   return (
     <FeedStack.Navigator>
       <FeedStack.Screen
         name="FeedHome"
         component={FeedScreen}
         options={{
-          header: () => <TopBar title="Feed" rightLabel="Search" />,
+          header: FeedHeader,
         }}
       />
       <FeedStack.Screen
@@ -154,7 +152,7 @@ function MessagesStackNavigator() {
       <MessagesStack.Screen
         name="Threads"
         component={ThreadsScreen}
-        options={{ header: () => <TopBar title="Messages" /> }}
+        options={{ header: MessagesHeader }}
       />
       <MessagesStack.Screen
         name="Chat"
@@ -270,17 +268,8 @@ function TopBar({ title, rightLabel }: TopBarProps) {
   const insets = useSafeAreaInsets();
 
   return (
-    <SafeAreaView
-      style={{
-        backgroundColor: '#fff',
-        paddingTop: insets.top,
-      }}
-    >
-      <TabBarTop
-        title={title}
-        rightLabel={rightLabel}
-        topPadding={Math.max(insets.top, 8)}
-      />
+    <SafeAreaView style={[topBarStyles.safeArea, { paddingTop: insets.top }]}>
+      <TabBarTop title={title} rightLabel={rightLabel} topPadding={insets.top} />
     </SafeAreaView>
   );
 }
@@ -293,28 +282,17 @@ type TabBarTopProps = {
 
 function TabBarTop({ title, rightLabel, topPadding }: TabBarTopProps) {
   const navigation = useNavigation<any>();
+  const clampedTop = Math.max(topPadding, 8);
 
   return (
-    <View
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 16,
-        paddingBottom: 10,
-        paddingTop: topPadding > 12 ? 12 : topPadding,
-        backgroundColor: '#fff',
-      }}
-    >
-      <Text style={{ fontSize: 22, fontWeight: '700', color: '#0F172A' }}>{title}</Text>
+    <View style={[topBarStyles.container, { paddingTop: Math.min(clampedTop, 12) }]}>
+      <Text style={topBarStyles.title}>{title}</Text>
       {rightLabel ? (
         <TouchableOpacity onPress={() => navigation.navigate('SearchProfiles')}>
-          <Text style={{ color: '#2563EB', fontSize: 16, fontWeight: '600' }}>
-            {rightLabel}
-          </Text>
+          <Text style={topBarStyles.action}>{rightLabel}</Text>
         </TouchableOpacity>
       ) : (
-        <View style={{ width: 40 }} />
+        <View style={topBarStyles.placeholder} />
       )}
     </View>
   );
@@ -380,3 +358,30 @@ export function MainTabsNavigator() {
     </Tab.Navigator>
   );
 }
+
+const topBarStyles = StyleSheet.create({
+  safeArea: {
+    backgroundColor: '#fff',
+  },
+  container: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingBottom: 10,
+    backgroundColor: '#fff',
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  action: {
+    color: '#2563EB',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  placeholder: {
+    width: 40,
+  },
+});
