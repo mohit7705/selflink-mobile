@@ -1,10 +1,10 @@
 import { User } from './user';
 
 export type SoulmatchComponents = {
-  astro: number;
-  matrix: number;
-  psychology: number;
-  lifestyle: number;
+  astro?: number;
+  matrix?: number;
+  psychology?: number;
+  lifestyle?: number;
 };
 
 export type SoulmatchResult = {

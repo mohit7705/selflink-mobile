@@ -1,29 +1,40 @@
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { MetalButton } from '@components/MetalButton';
 import { MetalPanel } from '@components/MetalPanel';
+import { BadgePill } from '@components/soulmatch/BadgePill';
+import { CompatibilityBar } from '@components/soulmatch/CompatibilityBar';
 import { LoadingView } from '@components/StateViews';
+import { UserAvatar } from '@components/UserAvatar';
 import { useToast } from '@context/ToastContext';
 import { SoulMatchStackParamList } from '@navigation/types';
 import { SoulmatchResult } from '@schemas/soulmatch';
 import { fetchSoulmatchMentor, fetchSoulmatchWith } from '@services/api/soulmatch';
+import { buildBadges, formatScore, scoreTone } from '@utils/soulmatch';
 import { theme } from '@theme/index';
 
 type Route = RouteProp<SoulMatchStackParamList, 'SoulMatchDetail'>;
 type Nav = NativeStackNavigationProp<SoulMatchStackParamList>;
 
-export function SoulMatchDetailsScreen() {
+type Props = {
+  prefetchedData?: SoulmatchResult | null;
+  skipAutoLoad?: boolean;
+};
+
+export function SoulMatchDetailsScreen({ prefetchedData = null, skipAutoLoad = false }: Props) {
   const navigation = useNavigation<Nav>();
   const route = useRoute<Route>();
   const { userId, displayName } = route.params;
   const toast = useToast();
-  const [data, setData] = useState<SoulmatchResult | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<SoulmatchResult | null>(prefetchedData);
+  const [loading, setLoading] = useState(!prefetchedData);
   const [mentorText, setMentorText] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const headerOpacity = useRef(new Animated.Value(0)).current;
+  const headerTranslate = useRef(new Animated.Value(12)).current;
 
   const title = useMemo(() => displayName || 'SoulMatch', [displayName]);
 
@@ -50,8 +61,27 @@ export function SoulMatchDetailsScreen() {
 
   useEffect(() => {
     navigation.setOptions?.({ title });
-    load().catch(() => undefined);
-  }, [load, navigation, title]);
+    if (!skipAutoLoad) {
+      load().catch(() => undefined);
+    } else {
+      setLoading(false);
+    }
+  }, [load, navigation, skipAutoLoad, title]);
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(headerOpacity, {
+        toValue: 1,
+        duration: 320,
+        useNativeDriver: true,
+      }),
+      Animated.timing(headerTranslate, {
+        toValue: 0,
+        duration: 320,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [data?.score, headerOpacity, headerTranslate]);
 
   const loadMentor = useCallback(async () => {
     if (!userId) {
@@ -100,6 +130,8 @@ export function SoulMatchDetailsScreen() {
     psychology: 0,
     lifestyle: 0,
   };
+  const badges = buildBadges(data, 4);
+  const tone = scoreTone(data.score);
 
   return (
     <ScrollView
@@ -109,27 +141,46 @@ export function SoulMatchDetailsScreen() {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#fff" />
       }
     >
-      <Text style={styles.headline}>{title}</Text>
-      <Text style={styles.subtitle}>Compatibility breakdown and mentor insight.</Text>
+      <Animated.View
+        style={[
+          styles.headerBlock,
+          { opacity: headerOpacity, transform: [{ translateY: headerTranslate }] },
+        ]}
+      >
+        <UserAvatar size={72} uri={data.user?.photo ?? undefined} label={title} />
+        <Text style={styles.headline}>{title}</Text>
+        <Text style={styles.subtitle}>SoulMatch compatibility</Text>
+        <MetalPanel glow style={styles.heroPanel}>
+          <View style={styles.heroScoreRow}>
+            <Text style={styles.scoreValue}>{formatScore(data.score)}</Text>
+            <BadgePill label={tone === 'positive' ? 'High vibe' : 'Aligned'} tone={tone} />
+          </View>
+          <View style={styles.heroBar}>
+            <CompatibilityBar value={data.score} />
+            <Text style={styles.scoreLabel}>Overall compatibility</Text>
+          </View>
+        </MetalPanel>
+      </Animated.View>
 
-      <MetalPanel glow>
-        <Text style={styles.scoreValue}>{data.score}</Text>
-        <Text style={styles.scoreLabel}>compatibility</Text>
+      <MetalPanel>
+        <Text style={styles.sectionTitle}>Highlights</Text>
+        <View style={styles.tagRow}>
+          {badges.map((tag) => (
+            <BadgePill key={tag} label={tag} tone={tone} />
+          ))}
+        </View>
+      </MetalPanel>
+
+      <MetalPanel>
+        <Text style={styles.sectionTitle}>Category Breakdown</Text>
         <View style={styles.components}>
           {Object.entries(components).map(([key, value]) => (
             <View key={key} style={styles.componentRow}>
-              <Text style={styles.componentLabel}>{key}</Text>
-              <View style={styles.barBackground}>
-                <View style={[styles.barFill, { width: `${Math.min(value, 100)}%` }]} />
+              <View style={styles.componentHeader}>
+                <Text style={styles.componentLabel}>{key}</Text>
+                <Text style={styles.componentValue}>{formatScore(value ?? 0)}</Text>
               </View>
-              <Text style={styles.componentValue}>{value}</Text>
-            </View>
-          ))}
-        </View>
-        <View style={styles.tagRow}>
-          {data.tags?.map((tag) => (
-            <View key={tag} style={styles.tag}>
-              <Text style={styles.tagText}>{tag}</Text>
+              <CompatibilityBar value={value ?? 0} size="sm" />
             </View>
           ))}
         </View>
@@ -143,7 +194,7 @@ export function SoulMatchDetailsScreen() {
           <MetalButton title="Load Mentor Insight" onPress={loadMentor} />
         )}
         <MetalButton
-          title="Open Mentor Screen"
+          title="Ask Mentor About Us"
           onPress={() =>
             navigation.navigate('SoulMatchMentor', {
               userId: data.user?.id ?? data.user_id ?? userId,
@@ -175,6 +226,24 @@ const styles = StyleSheet.create({
     color: theme.palette.silver,
     ...theme.typography.body,
   },
+  headerBlock: {
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+  },
+  heroPanel: {
+    width: '100%',
+    borderColor: theme.palette.glow,
+    borderWidth: 1,
+  },
+  heroScoreRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: theme.spacing.sm,
+  },
+  heroBar: {
+    gap: theme.spacing.xs,
+  },
   scoreValue: {
     color: theme.palette.platinum,
     fontSize: 32,
@@ -182,7 +251,6 @@ const styles = StyleSheet.create({
   },
   scoreLabel: {
     color: theme.palette.silver,
-    marginBottom: theme.spacing.md,
     ...theme.typography.caption,
   },
   components: {
@@ -190,21 +258,17 @@ const styles = StyleSheet.create({
   },
   componentRow: {
     gap: 4,
+    marginBottom: theme.spacing.sm,
+  },
+  componentHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   componentLabel: {
     color: theme.palette.platinum,
     textTransform: 'capitalize',
     ...theme.typography.caption,
-  },
-  barBackground: {
-    height: 8,
-    backgroundColor: theme.palette.titanium,
-    borderRadius: 6,
-  },
-  barFill: {
-    height: 8,
-    backgroundColor: theme.colors.primary,
-    borderRadius: 6,
   },
   componentValue: {
     color: theme.palette.silver,
