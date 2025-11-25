@@ -69,23 +69,23 @@ export function AstroWheel({
           fill="none"
         />
 
-          {ZODIAC_SIGNS.map((sign, index) => {
-            const startDeg = index * 30;
-            const { x, y } = degreesToXY(startDeg + 15, outerRadius - 8, center, center);
-            const label = sign.slice(0, 3).toUpperCase();
-            return (
-              <SvgText
-                key={sign}
-                x={x}
-                y={y}
-                fill="#E2E8F0"
-                fontSize="12"
-                fontWeight="700"
-                textAnchor="middle"
-                alignmentBaseline="middle"
-              >
-                {label}
-              </SvgText>
+        {ZODIAC_SIGNS.map((sign, index) => {
+          const startDeg = index * 30;
+          const { x, y } = degreesToXY(startDeg + 15, outerRadius - 8, center, center);
+          const label = sign.slice(0, 3).toUpperCase();
+          return (
+            <SvgText
+              key={sign}
+              x={x}
+              y={y}
+              fill="#E2E8F0"
+              fontSize="12"
+              fontWeight="700"
+              textAnchor="middle"
+              alignmentBaseline="middle"
+            >
+              {label}
+            </SvgText>
           );
         })}
 

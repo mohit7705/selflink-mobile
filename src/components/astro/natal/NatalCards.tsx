@@ -1,8 +1,8 @@
 import { ReactNode } from 'react';
 import { StyleSheet, Text, View, ViewStyle } from 'react-native';
 
-import { MetalPanel } from '@components/MetalPanel';
 import { PLANET_COLORS } from '@components/astro/AstroWheel';
+import { MetalPanel } from '@components/MetalPanel';
 import { Aspect, HousePosition, PlanetPosition } from '@schemas/astro';
 import { theme } from '@theme/index';
 
@@ -79,7 +79,9 @@ function SectionPanel({
       <View style={styles.sectionHeader}>
         <View style={styles.sectionHeaderText}>
           <Text style={styles.sectionTitle}>{title}</Text>
-          {description ? <Text style={styles.sectionDescription}>{description}</Text> : null}
+          {description ? (
+            <Text style={styles.sectionDescription}>{description}</Text>
+          ) : null}
         </View>
         {action}
       </View>
@@ -117,7 +119,11 @@ export function CoreIdentityCard({
       glow
     >
       {placements.map((item) => (
-        <PlacementRow key={item.label} label={item.label} value={formatPlacement(item.placement)} />
+        <PlacementRow
+          key={item.label}
+          label={item.label}
+          value={formatPlacement(item.placement)}
+        />
       ))}
     </SectionPanel>
   );
@@ -155,7 +161,10 @@ export function PlanetsCard({
   retrogradeTag,
 }: PlanetsCardProps) {
   return (
-    <SectionPanel title="Planets" description="All placements returned from the ephemeris.">
+    <SectionPanel
+      title="Planets"
+      description="All placements returned from the ephemeris."
+    >
       {orderedKeys.map((key) => {
         const placement = planets[key];
         const houseText = getHouseLabel?.(key);
@@ -177,7 +186,10 @@ export function PlanetsCard({
 export function HousesCard({ houses, formatPlacement }: HousesCardProps) {
   const sorted = Object.keys(houses).sort((a, b) => Number(a) - Number(b));
   return (
-    <SectionPanel title="Houses" description="Where each area of life begins in your chart.">
+    <SectionPanel
+      title="Houses"
+      description="Where each area of life begins in your chart."
+    >
       {sorted.map((houseKey) => (
         <PlacementRow
           key={houseKey}
@@ -210,7 +222,12 @@ export function AspectsCard({ aspects, renderAspect }: AspectsCardProps) {
 
 export function ElementBalanceCard({ elements }: ElementBalanceCardProps) {
   const maxCount = Math.max(...elements.map((item) => item.count), 1);
-  const palette = [theme.palette.amethyst, theme.palette.glow, theme.palette.ember, theme.palette.silver];
+  const palette = [
+    theme.palette.amethyst,
+    theme.palette.glow,
+    theme.palette.ember,
+    theme.palette.silver,
+  ];
 
   return (
     <SectionPanel
@@ -224,7 +241,12 @@ export function ElementBalanceCard({ elements }: ElementBalanceCardProps) {
           <View key={item.element} style={styles.elementRow}>
             <Text style={styles.rowLabel}>{item.element}</Text>
             <View style={styles.barTrack}>
-              <View style={[styles.barFill, { width: `${widthPercent}%`, backgroundColor: barColor }]} />
+              <View
+                style={[
+                  styles.barFill,
+                  { width: `${widthPercent}%`, backgroundColor: barColor },
+                ]}
+              />
             </View>
             <Text style={styles.rowValue}>{item.count}</Text>
           </View>
@@ -268,7 +290,10 @@ export function SelectedPlanetCard({
     return null;
   }
   return (
-    <SectionPanel title="Selected Planet" description="Tap a planet on the wheel to inspect.">
+    <SectionPanel
+      title="Selected Planet"
+      description="Tap a planet on the wheel to inspect."
+    >
       <PlacementRow
         label={planetKey.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
         value={formatPlacement(placement)}

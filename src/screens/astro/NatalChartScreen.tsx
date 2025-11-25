@@ -59,7 +59,11 @@ const SIGN_ELEMENT: Record<string, string> = {
   pisces: 'Water',
 };
 
-const formatPlacement = (placement?: { lon?: number; cusp_lon?: number; sign?: string }) => {
+const formatPlacement = (placement?: {
+  lon?: number;
+  cusp_lon?: number;
+  sign?: string;
+}) => {
   if (!placement?.sign) {
     return '—';
   }
@@ -158,6 +162,10 @@ export function NatalChartScreen({
   const [refreshing, setRefreshing] = useState(false);
   const [selectedPlanet, setSelectedPlanet] = useState<string | null>(null);
 
+  const planets = useMemo(() => chart?.planets ?? {}, [chart]);
+  const houses = useMemo(() => chart?.houses ?? {}, [chart]);
+  const aspects = useMemo(() => chart?.aspects ?? [], [chart]);
+
   const loadChart = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -191,40 +199,6 @@ export function NatalChartScreen({
     setRefreshing(false);
   }, [loadChart]);
 
-  if (loading) {
-    return <LoadingView message="Loading your natal chart…" />;
-  }
-
-  if (error) {
-    return (
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.errorBlock}>
-          <ErrorView
-            message={error}
-            actionLabel="Try again"
-            onRetry={() => loadChart().catch(() => undefined)}
-          />
-          <MetalButton title="Update Birth Data" onPress={() => navigation.navigate('BirthData')} />
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  if (!chart) {
-    return (
-      <SafeAreaView style={styles.safeArea}>
-        <ErrorView
-          message="No natal chart yet."
-          onRetry={() => navigation.navigate('BirthData')}
-        />
-      </SafeAreaView>
-    );
-  }
-
-  const planets = chart.planets || {};
-  const houses = chart.houses || {};
-  const aspects = chart.aspects || [];
-
   const orderedPlanets = useMemo(() => {
     const presentKeys = Object.keys(planets);
     const primary = BASE_PLANET_ORDER.filter((key) => presentKeys.includes(key));
@@ -255,6 +229,39 @@ export function NatalChartScreen({
     [orderedPlanets],
   );
 
+  if (loading) {
+    return <LoadingView message="Loading your natal chart…" />;
+  }
+
+  if (error) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.errorBlock}>
+          <ErrorView
+            message={error}
+            actionLabel="Try again"
+            onRetry={() => loadChart().catch(() => undefined)}
+          />
+          <MetalButton
+            title="Update Birth Data"
+            onPress={() => navigation.navigate('BirthData')}
+          />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!chart) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <ErrorView
+          message="No natal chart yet."
+          onRetry={() => navigation.navigate('BirthData')}
+        />
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView
@@ -271,8 +278,8 @@ export function NatalChartScreen({
           <View style={styles.titleBlock}>
             <Text style={styles.headline}>My Natal Chart</Text>
             <Text style={styles.subtitle}>
-              Your Sun, Moon, Ascendant and planets form the core roadmap of your personality.
-              Update birth data anytime to refresh.
+              Your Sun, Moon, Ascendant and planets form the core roadmap of your
+              personality. Update birth data anytime to refresh.
             </Text>
           </View>
           <TouchableOpacity
@@ -340,7 +347,7 @@ export function NatalChartScreen({
 
         <AspectsCard
           aspects={aspects}
-          renderAspect={(aspect, index) => {
+          renderAspect={(aspect) => {
             const { label, orbText } = summarizeAspect(aspect);
             return (
               <View>
@@ -353,7 +360,10 @@ export function NatalChartScreen({
 
         <ElementBalanceCard elements={elementBalance} />
 
-        <MetalButton title="Update Birth Data" onPress={() => navigation.navigate('BirthData')} />
+        <MetalButton
+          title="Update Birth Data"
+          onPress={() => navigation.navigate('BirthData')}
+        />
 
         {chart.calculated_at ? (
           <Text style={styles.footnote}>

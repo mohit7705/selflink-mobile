@@ -2,8 +2,8 @@ import { render, waitFor } from '@testing-library/react-native';
 import React from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { NatalChartScreen } from '@screens/astro/NatalChartScreen';
 import { NatalChart } from '@schemas/astro';
+import { NatalChartScreen } from '@screens/astro/NatalChartScreen';
 import { getMyNatalChart } from '@services/api/astro';
 
 jest.mock('@services/api/astro', () => ({
@@ -11,21 +11,23 @@ jest.mock('@services/api/astro', () => ({
   createOrUpdateNatalChart: jest.fn(),
 }));
 jest.mock('@react-navigation/native', () => {
-  const React = require('react');
+  const ReactMock = require('react');
   return {
     useNavigation: () => ({ navigate: jest.fn(), goBack: jest.fn() }),
-    NavigationContainer: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+    NavigationContainer: ({ children }: { children: ReactMock.ReactNode }) => (
+      <>{children}</>
+    ),
   };
 });
 jest.mock('@expo/vector-icons', () => {
-  const React = require('react');
+  const ReactMock = require('react');
   const { Text } = require('react-native');
   return {
     Ionicons: ({ name }: { name: string }) => <Text>{name}</Text>,
   };
 });
 jest.mock('@components/astro/AstroWheel', () => {
-  const React = require('react');
+  const ReactMock = require('react');
   const { Text } = require('react-native');
   return {
     PLANET_COLORS: { sun: '#fff', moon: '#eee', mars: '#f00' },
