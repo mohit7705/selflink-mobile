@@ -15,6 +15,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  ViewToken,
   View,
 } from 'react-native';
 
@@ -44,6 +45,7 @@ export function FeedScreen() {
   const indicator = useRef(new Animated.Value(currentMode === 'for_you' ? 0 : 1)).current;
   const [segmentWidth, setSegmentWidth] = useState(0);
   const showFab = useMemo(() => items.some((item) => item.type === 'post'), [items]);
+  const [activeVideoPostId, setActiveVideoPostId] = useState<string | null>(null);
 
   useEffect(() => {
     loadFeed().catch(() => undefined);
@@ -85,20 +87,31 @@ export function FeedScreen() {
     [currentMode, setMode],
   );
 
-  const renderItem = useCallback(({ item }: { item: FeedItem }) => {
-    switch (item.type) {
-      case 'post':
-        return <FeedPostCard post={item.post} />;
-      case 'mentor_insight':
-        return <MentorFeedCard data={item.mentor} />;
-      case 'matrix_insight':
-        return <MatrixFeedCard data={item.matrix} />;
-      case 'soulmatch_reco':
-        return <SoulMatchFeedCard data={item.soulmatch} />;
-      default:
-        return null;
-    }
-  }, []);
+  const renderItem = useCallback(
+    ({ item }: { item: FeedItem }) => {
+      switch (item.type) {
+        case 'post':
+          return (
+            <FeedPostCard
+              post={item.post}
+              isVideoActive={
+                Boolean(item.post.video?.url) &&
+                String(item.post.id) === String(activeVideoPostId ?? '')
+              }
+            />
+          );
+        case 'mentor_insight':
+          return <MentorFeedCard data={item.mentor} />;
+        case 'matrix_insight':
+          return <MatrixFeedCard data={item.matrix} />;
+        case 'soulmatch_reco':
+          return <SoulMatchFeedCard data={item.soulmatch} />;
+        default:
+          return null;
+      }
+    },
+    [activeVideoPostId],
+  );
 
   const renderSeparator = useCallback(() => <View style={styles.separator} />, []);
 
@@ -161,6 +174,34 @@ export function FeedScreen() {
         </LinearGradient>
       </View>
     ) : null;
+
+  const onViewableItemsChanged = useRef(
+    ({ viewableItems }: { viewableItems: Array<ViewToken<FeedItem>> }) => {
+      const visibleVideos = viewableItems
+        .filter(
+          (token) =>
+            token.isViewable &&
+            token.item?.type === 'post' &&
+            Boolean(token.item?.post?.video?.url),
+        )
+        .map((token) => ({
+          id: token.item?.post?.id ? String(token.item.post.id) : null,
+          index: token.index ?? 0,
+        }))
+        .filter((item) => item.id !== null);
+
+      if (!visibleVideos.length) {
+        setActiveVideoPostId(null);
+        return;
+      }
+      const next = visibleVideos.sort((a, b) => (a.index ?? 0) - (b.index ?? 0))[0];
+      setActiveVideoPostId((prev) => (prev === next.id ? prev : (next.id as string)));
+    },
+  ).current;
+
+  const viewabilityConfig = useRef({
+    itemVisiblePercentThreshold: 75,
+  });
 
   return (
     <LinearGradient colors={theme.gradients.appBackground} style={styles.container}>
@@ -230,6 +271,9 @@ export function FeedScreen() {
             scrollOffsets.current[currentMode] = event.nativeEvent.contentOffset.y;
           }}
           scrollEventThrottle={16}
+          onViewableItemsChanged={onViewableItemsChanged}
+          viewabilityConfig={viewabilityConfig.current}
+          extraData={activeVideoPostId}
         />
       )}
       {showFab ? (

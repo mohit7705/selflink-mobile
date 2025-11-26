@@ -1,0 +1,222 @@
+import { Ionicons } from '@expo/vector-icons';
+import { AVPlaybackStatus, AVPlaybackStatusSuccess, ResizeMode, Video } from 'expo-av';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+
+import type { PostVideo } from '@schemas/social';
+
+type Props = {
+  source: PostVideo;
+  isActive?: boolean;
+};
+
+const formatDuration = (seconds?: number | null): string | null => {
+  if (typeof seconds !== 'number' || Number.isNaN(seconds)) {
+    return null;
+  }
+  const totalSeconds = Math.max(0, Math.floor(seconds));
+  const mins = Math.floor(totalSeconds / 60);
+  const secs = totalSeconds % 60;
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+};
+
+function VideoPostPlayerComponent({ source, isActive = false }: Props) {
+  const videoRef = useRef<Video>(null);
+  const [status, setStatus] = useState<AVPlaybackStatus | null>(null);
+  const [isMuted, setIsMuted] = useState(true);
+  const [userPaused, setUserPaused] = useState(false);
+
+  const loadedStatus = status && status.isLoaded ? (status as AVPlaybackStatusSuccess) : null;
+  const isPlaying = loadedStatus?.isPlaying ?? false;
+  const isBuffering = loadedStatus?.isBuffering ?? false;
+  const shouldPlay = isActive && !userPaused;
+
+  const aspectRatio = useMemo(() => {
+    if (source.width && source.height && source.width > 0 && source.height > 0) {
+      return source.width / source.height;
+    }
+    return 9 / 16;
+  }, [source.height, source.width]);
+
+  useEffect(() => {
+    const player = videoRef.current;
+    if (!player) {
+      return;
+    }
+    if (shouldPlay) {
+      player.playAsync().catch(() => undefined);
+    } else {
+      player.pauseAsync().catch(() => undefined);
+    }
+  }, [shouldPlay]);
+
+  useEffect(
+    () => () => {
+      videoRef.current?.stopAsync().catch(() => undefined);
+    },
+    [],
+  );
+
+  const handleTogglePlayback = () => {
+    if (!loadedStatus) {
+      return;
+    }
+    if (isPlaying) {
+      setUserPaused(true);
+      videoRef.current?.pauseAsync().catch(() => undefined);
+    } else {
+      setUserPaused(false);
+      videoRef.current?.playAsync().catch(() => undefined);
+    }
+  };
+
+  const handleToggleMute = () => setIsMuted((prev) => !prev);
+
+  const durationLabel = formatDuration(source.duration ?? loadedStatus?.durationMillis / 1000);
+
+  if (!source?.url) {
+    return null;
+  }
+
+  return (
+    <View style={styles.container} testID="video-post-player">
+      <Pressable onPress={handleTogglePlayback}>
+        <Video
+          ref={videoRef}
+          source={{ uri: source.url }}
+          resizeMode={ResizeMode.COVER}
+          shouldPlay={shouldPlay}
+          isMuted={isMuted}
+          isLooping
+          onPlaybackStatusUpdate={(nextStatus) => setStatus(nextStatus)}
+          posterSource={
+            source.thumbnailUrl ? { uri: source.thumbnailUrl } : undefined
+          }
+          usePoster={Boolean(source.thumbnailUrl)}
+          style={[styles.video, { aspectRatio }]}
+        />
+        <View style={styles.overlay}>
+          <View style={styles.tag}>
+            <Ionicons name="play-circle" color="#0EA5E9" size={14} />
+            <Text style={styles.tagText}>VIDEO</Text>
+          </View>
+          <Pressable
+            onPress={handleToggleMute}
+            hitSlop={10}
+            style={styles.muteButton}
+            testID="video-mute-toggle"
+          >
+            <Ionicons
+              name={isMuted ? 'volume-mute' : 'volume-high'}
+              size={18}
+              color="#E2E8F0"
+            />
+          </Pressable>
+          {!isPlaying ? (
+            <View style={styles.centerIndicator} pointerEvents="none">
+              <Ionicons name="play" size={32} color="#E2E8F0" />
+            </View>
+          ) : null}
+          {isBuffering ? (
+            <View style={styles.buffering}>
+              <ActivityIndicator color="#E2E8F0" />
+            </View>
+          ) : null}
+          {durationLabel ? (
+            <View style={styles.durationBadge}>
+              <Text style={styles.durationText}>{durationLabel}</Text>
+            </View>
+          ) : null}
+        </View>
+      </Pressable>
+    </View>
+  );
+}
+
+export const VideoPostPlayer = memo(VideoPostPlayerComponent);
+
+const styles = StyleSheet.create({
+  container: {
+    borderRadius: 20,
+    overflow: 'hidden',
+    backgroundColor: '#0F172A',
+    borderWidth: 1,
+    borderColor: 'rgba(148,163,184,0.25)',
+  },
+  video: {
+    width: '100%',
+    minHeight: 260,
+    backgroundColor: '#0B1120',
+  },
+  overlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'space-between',
+    padding: 10,
+  },
+  tag: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(15,23,42,0.7)',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  tagText: {
+    color: '#E2E8F0',
+    fontWeight: '700',
+    fontSize: 12,
+    letterSpacing: 0.3,
+  },
+  muteButton: {
+    position: 'absolute',
+    right: 12,
+    bottom: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(15,23,42,0.75)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(148,163,184,0.35)',
+  },
+  centerIndicator: {
+    position: 'absolute',
+    top: '45%',
+    alignSelf: 'center',
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(15,23,42,0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  buffering: {
+    position: 'absolute',
+    top: '45%',
+    alignSelf: 'center',
+  },
+  durationBadge: {
+    position: 'absolute',
+    left: 12,
+    bottom: 12,
+    backgroundColor: 'rgba(15,23,42,0.75)',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(148,163,184,0.35)',
+  },
+  durationText: {
+    color: '#E2E8F0',
+    fontWeight: '700',
+    fontSize: 12,
+    letterSpacing: 0.3,
+  },
+});

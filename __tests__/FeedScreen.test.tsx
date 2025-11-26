@@ -85,6 +85,27 @@ const postItem: FeedItem = {
   },
 };
 
+const videoPostItem: FeedItem = {
+  type: 'post' as const,
+  id: 'video-1',
+  post: {
+    id: 'video-1',
+    author: baseAuthor,
+    text: 'Video hello',
+    visibility: 'public',
+    language: 'en',
+    media: [],
+    video: {
+      url: 'https://cdn.example.com/video.mp4',
+      duration: 15.2,
+    },
+    like_count: 0,
+    comment_count: 0,
+    liked: false,
+    created_at: '2024-01-01T00:00:00Z',
+  },
+};
+
 const mentorItem: FeedItem = {
   type: 'mentor_insight' as const,
   id: 'mentor-1',
@@ -170,6 +191,13 @@ describe('FeedScreen', () => {
     expect(mockParentNavigate).toHaveBeenCalledWith('SoulMatch', {
       screen: 'SoulMatchRecommendations',
     });
+  });
+
+  it('renders video posts with player', () => {
+    mockState.itemsByMode.for_you = [videoPostItem];
+    const { getByTestId } = render(<FeedScreen />);
+
+    expect(getByTestId('video-post-player')).toBeTruthy();
   });
 
   it('switches feed mode via toggle', () => {

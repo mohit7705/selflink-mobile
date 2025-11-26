@@ -1,7 +1,8 @@
 import { isAxiosError } from 'axios';
 
 import type { FeedItem, FeedResponse } from '@schemas/feed';
-import type { Comment, Post } from '@schemas/social';
+import type { Comment, Post, PostVideo } from '@schemas/social';
+import { resolveBackendUrl } from '@utils/backendUrl';
 
 import { apiClient } from './client';
 
@@ -60,19 +61,85 @@ const normalizeInsight = (
   return { title, subtitle, cta };
 };
 
+const normalizeVideo = (value: any): PostVideo | null => {
+  if (!value) {
+    return null;
+  }
+  if (typeof value === 'string') {
+    const url = resolveBackendUrl(value) ?? value;
+    return { url, thumbnailUrl: null, duration: null, width: null, height: null };
+  }
+  if (typeof value !== 'object') {
+    return null;
+  }
+  const url =
+    typeof (value as any).url === 'string' && (value as any).url.length > 0
+      ? (value as any).url
+      : typeof (value as any).uri === 'string' && (value as any).uri.length > 0
+        ? (value as any).uri
+        : typeof (value as any).source === 'string' && (value as any).source.length > 0
+          ? (value as any).source
+          : typeof (value as any).file === 'string' && (value as any).file.length > 0
+            ? (value as any).file
+            : typeof (value as any).video_url === 'string' &&
+                (value as any).video_url.length > 0
+              ? (value as any).video_url
+              : null;
+  if (!url) {
+    return null;
+  }
+  const resolvedUrl = resolveBackendUrl(url) ?? url;
+  const thumbCandidate =
+    (value as any).thumbnail_url ??
+    (value as any).thumbnail ??
+    (value as any).preview ??
+    (value as any).poster ??
+    null;
+  const thumbnailUrl =
+    typeof thumbCandidate === 'string' && thumbCandidate.length > 0
+      ? resolveBackendUrl(thumbCandidate) ?? thumbCandidate
+      : null;
+  const duration =
+    typeof (value as any).duration === 'number'
+      ? (value as any).duration
+      : typeof (value as any).duration_seconds === 'number'
+        ? (value as any).duration_seconds
+        : null;
+  const width =
+    typeof (value as any).width === 'number' ? (value as any).width : null;
+  const height =
+    typeof (value as any).height === 'number' ? (value as any).height : null;
+  const mimeType =
+    typeof (value as any).mime === 'string'
+      ? (value as any).mime
+      : typeof (value as any).mime_type === 'string'
+        ? (value as any).mime_type
+        : null;
+  return { url: resolvedUrl, thumbnailUrl, duration, width, height, mimeType };
+};
+
+const normalizePost = (rawPost: any): Post => {
+  const video = normalizeVideo(rawPost?.video);
+  return {
+    ...(rawPost as Post),
+    video,
+  };
+};
+
 const toPostItem = (entry: any, index: number): FeedItem | null => {
   const post = entry?.post ?? entry;
   if (!post || typeof post !== 'object') {
     return null;
   }
-  const id = asIdentifier(entry?.id ?? post?.id ?? index);
+  const normalizedPost = normalizePost(post);
+  const id = asIdentifier(entry?.id ?? normalizedPost?.id ?? index);
   if (!id) {
     return null;
   }
   return {
     type: 'post',
     id,
-    post,
+    post: normalizedPost,
   };
 };
 
@@ -220,18 +287,23 @@ export async function getFollowingFeed(nextUrl?: string): Promise<FeedResponse> 
 
 export async function getPost(postId: string | number): Promise<Post> {
   const { data } = await apiClient.get<Post>(`/posts/${postId}/`);
-  return data;
+  return normalizePost(data);
 }
 
 export interface CreatePostPayload {
   content: string;
   imageUris?: string[];
+  videoUri?: string | null;
+  videoName?: string;
+  videoMimeType?: string;
   visibility?: string;
   language?: string;
 }
 
 export async function createPost(payload: CreatePostPayload): Promise<Post> {
-  if (payload.imageUris && payload.imageUris.length > 0) {
+  const hasImages = payload.imageUris && payload.imageUris.length > 0;
+  const hasVideo = Boolean(payload.videoUri);
+  if (hasImages || hasVideo) {
     const formData = new FormData();
     formData.append('text', payload.content);
     if (payload.visibility) {
@@ -240,24 +312,31 @@ export async function createPost(payload: CreatePostPayload): Promise<Post> {
     if (payload.language) {
       formData.append('language', payload.language);
     }
-    payload.imageUris.forEach((uri, index) => {
+    payload.imageUris?.forEach((uri, index) => {
       formData.append('images', {
         uri,
         name: `upload-${index}.jpg`,
         type: 'image/jpeg',
       } as unknown as Blob);
     });
+    if (payload.videoUri) {
+      formData.append('video', {
+        uri: payload.videoUri,
+        name: payload.videoName ?? 'upload.mp4',
+        type: payload.videoMimeType ?? 'video/mp4',
+      } as unknown as Blob);
+    }
     const { data } = await apiClient.post<Post>('/posts/', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
-    return data;
+    return normalizePost(data);
   }
   const { data } = await apiClient.post<Post>('/posts/', {
     text: payload.content,
     visibility: payload.visibility,
     language: payload.language,
   });
-  return data;
+  return normalizePost(data);
 }
 
 export type CommentImageAttachment = {

@@ -53,3 +53,29 @@ jest.mock('expo-linear-gradient', () => {
     },
   };
 });
+
+jest.mock('expo-av', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  const mockCommands = {
+    playAsync: jest.fn(async () => undefined),
+    pauseAsync: jest.fn(async () => undefined),
+    stopAsync: jest.fn(async () => undefined),
+  };
+  const Video = React.forwardRef((props: any, ref: any) => {
+    React.useImperativeHandle(ref, () => mockCommands);
+    return React.createElement(View, props, props.children);
+  });
+  return {
+    Video,
+    ResizeMode: { COVER: 'cover', CONTAIN: 'contain' },
+  };
+});
+
+jest.mock('@expo/vector-icons', () => {
+  const React = require('react');
+  const { Text } = require('react-native');
+  const Icon = ({ name, ...props }: { name: string }) =>
+    React.createElement(Text, props, name);
+  return { Ionicons: Icon };
+});

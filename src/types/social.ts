@@ -15,6 +15,15 @@ export interface MediaAsset {
   created_at: string;
 }
 
+export interface PostVideo {
+  url: string;
+  thumbnailUrl?: string | null;
+  duration?: number | null;
+  width?: number | null;
+  height?: number | null;
+  mimeType?: string | null;
+}
+
 export interface Post {
   id: Identifier;
   author: User;
@@ -25,6 +34,7 @@ export interface Post {
   image_url?: string | null;
   image_urls?: string[] | null;
   images?: Array<string | { url?: string | null; uri?: string | null }> | null;
+  video?: PostVideo | null;
   like_count: number;
   comment_count: number;
   liked: boolean;

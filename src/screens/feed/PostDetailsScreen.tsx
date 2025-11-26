@@ -180,6 +180,8 @@ export function PostDetailsScreen() {
             <PostContent
               text={post?.text}
               media={post?.media}
+              video={post?.video}
+              isVideoActive
               legacySources={[
                 post?.images,
                 post?.image_urls,

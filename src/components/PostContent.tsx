@@ -2,7 +2,8 @@ import { memo, useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { AttachmentGallery } from '@components/media/AttachmentGallery';
-import type { MediaAsset } from '@schemas/social';
+import { VideoPostPlayer } from '@components/VideoPostPlayer';
+import type { MediaAsset, PostVideo } from '@schemas/social';
 import { buildAttachments } from '@utils/attachments';
 
 import { MarkdownText } from './markdown/MarkdownText';
@@ -11,12 +12,24 @@ type Props = {
   text?: string | null;
   media?: MediaAsset[] | null;
   legacySources?: unknown[];
+  video?: PostVideo | null;
+  isVideoActive?: boolean;
 };
 
-function PostContentComponent({ text, media, legacySources = [] }: Props) {
+function PostContentComponent({
+  text,
+  media,
+  legacySources = [],
+  video,
+  isVideoActive,
+}: Props) {
+  const hasVideo = Boolean(video?.url);
   const attachments = useMemo(
-    () => buildAttachments({ media, legacySources }),
-    [legacySources, media],
+    () =>
+      hasVideo
+        ? [] // Prefer a single video over image attachments in this phase.
+        : buildAttachments({ media, legacySources }),
+    [legacySources, media, hasVideo],
   );
 
   return (
@@ -26,7 +39,11 @@ function PostContentComponent({ text, media, legacySources = [] }: Props) {
           <MarkdownText>{text}</MarkdownText>
         </View>
       ) : null}
-      <AttachmentGallery attachments={attachments} />
+      {hasVideo ? (
+        <VideoPostPlayer source={video as PostVideo} isActive={Boolean(isVideoActive)} />
+      ) : (
+        <AttachmentGallery attachments={attachments} />
+      )}
     </View>
   );
 }
