@@ -118,7 +118,7 @@ const normalizeVideo = (value: any): PostVideo | null => {
   return { url: resolvedUrl, thumbnailUrl, duration, width, height, mimeType };
 };
 
-const normalizePost = (rawPost: any): Post => {
+export const normalizePost = (rawPost: any): Post => {
   const video = normalizeVideo(rawPost?.video);
   return {
     ...(rawPost as Post),

@@ -8,6 +8,7 @@ import type { PostVideo } from '@schemas/social';
 type Props = {
   source: PostVideo;
   isActive?: boolean;
+  mode?: 'inline' | 'reel';
 };
 
 const formatDuration = (seconds?: number | null): string | null => {
@@ -20,7 +21,7 @@ const formatDuration = (seconds?: number | null): string | null => {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 };
 
-function VideoPostPlayerComponent({ source, isActive = false }: Props) {
+function VideoPostPlayerComponent({ source, isActive = false, mode = 'inline' }: Props) {
   const videoRef = useRef<Video>(null);
   const [status, setStatus] = useState<AVPlaybackStatus | null>(null);
   const [isMuted, setIsMuted] = useState(true);
@@ -32,11 +33,14 @@ function VideoPostPlayerComponent({ source, isActive = false }: Props) {
   const shouldPlay = isActive && !userPaused;
 
   const aspectRatio = useMemo(() => {
+    if (mode === 'reel') {
+      return undefined;
+    }
     if (source.width && source.height && source.width > 0 && source.height > 0) {
       return source.width / source.height;
     }
     return 9 / 16;
-  }, [source.height, source.width]);
+  }, [mode, source.height, source.width]);
 
   useEffect(() => {
     const player = videoRef.current;
@@ -79,7 +83,10 @@ function VideoPostPlayerComponent({ source, isActive = false }: Props) {
   }
 
   return (
-    <View style={styles.container} testID="video-post-player">
+    <View
+      style={[styles.container, mode === 'reel' && styles.containerReel]}
+      testID="video-post-player"
+    >
       <Pressable onPress={handleTogglePlayback}>
         <Video
           ref={videoRef}
@@ -93,13 +100,19 @@ function VideoPostPlayerComponent({ source, isActive = false }: Props) {
             source.thumbnailUrl ? { uri: source.thumbnailUrl } : undefined
           }
           usePoster={Boolean(source.thumbnailUrl)}
-          style={[styles.video, { aspectRatio }]}
+          style={[
+            styles.video,
+            mode === 'reel' ? styles.videoReel : null,
+            aspectRatio ? { aspectRatio } : { width: '100%', height: '100%' },
+          ]}
         />
         <View style={styles.overlay}>
-          <View style={styles.tag}>
-            <Ionicons name="play-circle" color="#0EA5E9" size={14} />
-            <Text style={styles.tagText}>VIDEO</Text>
-          </View>
+          {mode === 'inline' ? (
+            <View style={styles.tag}>
+              <Ionicons name="play-circle" color="#0EA5E9" size={14} />
+              <Text style={styles.tagText}>VIDEO</Text>
+            </View>
+          ) : null}
           <Pressable
             onPress={handleToggleMute}
             hitSlop={10}
@@ -122,7 +135,7 @@ function VideoPostPlayerComponent({ source, isActive = false }: Props) {
               <ActivityIndicator color="#E2E8F0" />
             </View>
           ) : null}
-          {durationLabel ? (
+          {mode === 'inline' && durationLabel ? (
             <View style={styles.durationBadge}>
               <Text style={styles.durationText}>{durationLabel}</Text>
             </View>
@@ -143,10 +156,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(148,163,184,0.25)',
   },
+  containerReel: {
+    borderRadius: 0,
+    borderWidth: 0,
+    backgroundColor: '#000',
+  },
   video: {
     width: '100%',
     minHeight: 260,
     backgroundColor: '#0B1120',
+  },
+  videoReel: {
+    minHeight: undefined,
+    height: '100%',
   },
   overlay: {
     position: 'absolute',

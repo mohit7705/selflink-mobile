@@ -255,6 +255,13 @@ export function FeedScreen() {
             </TouchableOpacity>
           );
         })}
+        <TouchableOpacity
+          style={styles.reelsButton}
+          onPress={() => navigation.navigate('SoulReels')}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.reelsLabel}>SoulReels</Text>
+        </TouchableOpacity>
       </View>
       {showInitialSkeleton ? (
         renderSkeletons()
@@ -367,11 +374,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     gap: 8,
+    alignItems: 'center',
   },
   modeTrack: {
     position: 'absolute',
     left: 16,
-    right: 16,
+    right: 116,
     top: 10,
     bottom: 10,
     borderRadius: 14,
@@ -404,6 +412,17 @@ const styles = StyleSheet.create({
   },
   modeLabelActive: {
     color: '#fff',
+  },
+  reelsButton: {
+    marginLeft: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: '#0EA5E9',
+  },
+  reelsLabel: {
+    color: '#0B1120',
+    fontWeight: '700',
   },
   skeletonList: {
     paddingHorizontal: 16,

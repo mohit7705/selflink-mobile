@@ -22,6 +22,7 @@ export type FeedStackParamList = {
   CreatePost: undefined;
   SearchProfiles: undefined;
   UserProfile: { userId: number };
+  SoulReels: undefined;
 };
 
 export type MessagesStackParamList = {

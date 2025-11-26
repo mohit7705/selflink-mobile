@@ -12,6 +12,7 @@ import { NatalChartScreen } from '@screens/astro/NatalChartScreen';
 import { CreatePostScreen } from '@screens/feed/CreatePostScreen';
 import { FeedScreen } from '@screens/feed/FeedScreen';
 import { PostDetailsScreen } from '@screens/feed/PostDetailsScreen';
+import { SoulReelsScreen } from '@screens/video/SoulReelsScreen';
 import { DailyMentorEntryScreen } from '@screens/mentor/DailyMentorEntryScreen';
 import { DailyMentorScreen } from '@screens/mentor/DailyMentorScreen';
 import { MentorChatScreen } from '@screens/mentor/MentorChatScreen';
@@ -141,6 +142,11 @@ function FeedStackNavigator() {
         name="UserProfile"
         component={UserProfileScreen}
         options={{ title: 'Profile' }}
+      />
+      <FeedStack.Screen
+        name="SoulReels"
+        component={SoulReelsScreen}
+        options={{ headerShown: false }}
       />
     </FeedStack.Navigator>
   );
