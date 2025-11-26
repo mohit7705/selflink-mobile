@@ -11,12 +11,20 @@ export type PickedVideo = {
   height?: number | null;
 };
 
-const VIDEO_MEDIA_TYPE: ImagePicker.MediaType | ImagePicker.MediaTypeOptions =
-  // Prefer new enum when available.
-  (ImagePicker as any).MediaType?.Video ?? ImagePicker.MediaTypeOptions.Videos;
+type VideoPickerModule = typeof ImagePicker & {
+  MediaType?: {
+    video?: ImagePicker.MediaType;
+    Video?: ImagePicker.MediaType;
+  };
+};
+
+const VIDEO_MEDIA_TYPE = ((ImagePicker as VideoPickerModule).MediaType?.Video ??
+  (ImagePicker as VideoPickerModule).MediaType?.video ??
+  ('videos' as ImagePicker.MediaType)) as ImagePicker.MediaType;
 
 const defaultOptions: ImagePicker.ImagePickerOptions = {
-  mediaTypes: VIDEO_MEDIA_TYPE as any,
+  // Use array form to avoid deprecated MediaTypeOptions API.
+  mediaTypes: [VIDEO_MEDIA_TYPE],
   allowsEditing: false,
   quality: 0.8,
 };
