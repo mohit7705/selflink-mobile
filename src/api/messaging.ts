@@ -1,6 +1,12 @@
 import type { AxiosRequestConfig } from 'axios';
 
-import type { CreateThreadPayload, Message, Thread } from '@schemas/messaging';
+import type {
+  CreateThreadPayload,
+  Message,
+  MessageAttachment,
+  MessageStatus,
+  Thread,
+} from '@schemas/messaging';
 import { parseJsonPreservingLargeInts } from '@utils/json';
 
 import { apiClient } from './client';
@@ -19,6 +25,11 @@ const preciseToApproxThreadIdMap = new Map<string, string>();
 type MessageResponse = Omit<Message, 'id' | 'thread'> & {
   id: string | number;
   thread: string | number;
+  status?: MessageStatus;
+  client_uuid?: string | null;
+  delivered_at?: string | null;
+  read_at?: string | null;
+  attachments?: MessageAttachment[];
 };
 
 type ThreadResponse = Omit<Thread, 'id'> & {
@@ -242,15 +253,82 @@ export async function getThreadMessages(
 }
 
 export async function sendMessage(threadId: string, text: string): Promise<Message> {
+  return sendMessageWithMeta(threadId, text, {});
+}
+
+type SendMessageOptions = {
+  clientUuid?: string;
+  type?: string;
+  meta?: Record<string, unknown> | null;
+  attachments?: MessageAttachment[];
+};
+
+export async function sendMessageWithMeta(
+  threadId: string,
+  text: string,
+  options: SendMessageOptions,
+): Promise<Message> {
   const { parsed, precise } = await requestWithPrecision<MessageResponse>({
     method: 'POST',
     url: '/messages/',
     data: {
       thread: resolveThreadId(threadId),
       body: text,
+      ...(options?.clientUuid ? { client_uuid: options.clientUuid } : {}),
+      ...(options?.type ? { type: options.type } : {}),
+      ...(options?.meta ? { meta: options.meta } : {}),
+      ...(options?.attachments ? { attachments: options.attachments } : {}),
     },
   });
   return normalizeMessage(parsed, precise);
+}
+
+export async function ackMessage(
+  messageId: string,
+  status: Exclude<MessageStatus, 'queued' | 'failed'>,
+): Promise<Message | null> {
+  try {
+    const { parsed, precise } = await requestWithPrecision<MessageResponse | null>({
+      method: 'POST',
+      url: `/messages/${messageId}/ack/`,
+      data: { status },
+    });
+    if (!parsed) {
+      return null;
+    }
+    return normalizeMessage(
+      parsed as MessageResponse,
+      precise as MessageResponse | undefined,
+    );
+  } catch (error) {
+    console.warn('messagingApi: ackMessage failed', { messageId, status, error });
+    throw error;
+  }
+}
+
+export async function syncThreadMessages(
+  threadId: string,
+  since?: string | null,
+): Promise<Message[]> {
+  const params = new URLSearchParams();
+  if (since) {
+    params.append('since', since);
+  }
+  const { parsed, precise } = await requestWithPrecision<
+    ListPayload<MessageResponse> | MessageResponse[]
+  >({
+    method: 'GET',
+    url: `/threads/${resolveThreadId(threadId)}/sync/${params.size ? `?${params.toString()}` : ''}`,
+  });
+  const approxMessages = Array.isArray(parsed)
+    ? parsed
+    : extractResults<MessageResponse>(parsed as ListPayload<MessageResponse>);
+  const preciseMessages = Array.isArray(precise)
+    ? (precise as MessageResponse[])
+    : extractResults<MessageResponse>(precise as ListPayload<MessageResponse>);
+  return approxMessages.map((message, index) =>
+    normalizeMessage(message as MessageResponse, preciseMessages[index]),
+  );
 }
 
 export async function getOrCreateDirectThread(

@@ -28,7 +28,7 @@ import {
 import { ChatBubble } from '@components/messaging/ChatBubble';
 import TypingIndicator from '@components/messaging/TypingIndicator';
 import { navigateToUserProfile } from '@navigation/helpers';
-import type { Message } from '@schemas/messaging';
+import type { Message, MessageStatus } from '@schemas/messaging';
 import {
   getTypingStatus,
   sendTypingSignal,
@@ -96,6 +96,7 @@ export function ChatScreen() {
   const syncThreads = useMessagingStore((state) => state.syncThreads);
   const removeMessage = useMessagingStore((state) => state.removeMessage);
   const setTypingStatus = useMessagingStore((state) => state.setTypingStatus);
+  const retryPendingMessage = useMessagingStore((state) => state.retryPendingMessage);
   const threadKey = useMemo(() => String(threadId), [threadId]);
   const messages = useMessagingStore(
     useCallback(
@@ -307,6 +308,23 @@ export function ChatScreen() {
     [pendingDeleteId, removeMessage, threadId],
   );
 
+  const handleRetry = useCallback(
+    (message: Message) => {
+      const clientUuid =
+        (message as any)?.client_uuid ??
+        (message as any)?.clientUuid ??
+        (typeof message.id === 'string' ? message.id : null);
+      if (!clientUuid) {
+        return;
+      }
+      retryPendingMessage(String(clientUuid)).catch((error) => {
+        console.warn('ChatScreen: retry send failed', error);
+        Alert.alert('Unable to send message', 'Please try again.');
+      });
+    },
+    [retryPendingMessage],
+  );
+
   const renderMessage = useCallback<ListRenderItem<Message>>(
     ({ item, index }) => {
       const senderId = item.sender?.id != null ? String(item.sender.id) : null;
@@ -327,6 +345,9 @@ export function ChatScreen() {
         nextSenderKey != null && currentSenderKey != null
           ? nextSenderKey === currentSenderKey
           : nextSenderKey === currentSenderKey;
+      const statusForBubble: MessageStatus | undefined = isOwn
+        ? ((item.status as MessageStatus | undefined) ?? 'sent')
+        : undefined;
 
       return (
         <ChatBubble
@@ -335,13 +356,14 @@ export function ChatScreen() {
           isFirstInGroup={!sameSenderAsNext}
           isLastInGroup={!sameSenderAsPrev}
           showTimestamp={!sameSenderAsPrev}
-          status={isOwn ? 'read' : undefined}
+          status={statusForBubble}
           onLongPress={confirmDeleteMessage}
           disableActions={Boolean(pendingDeleteId)}
+          onRetry={statusForBubble === 'failed' ? handleRetry : undefined}
         />
       );
     },
-    [confirmDeleteMessage, currentUserKey, pendingDeleteId, sortedMessages],
+    [confirmDeleteMessage, currentUserKey, handleRetry, pendingDeleteId, sortedMessages],
   );
 
   if (isLoading && messages.length === 0) {

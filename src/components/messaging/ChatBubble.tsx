@@ -11,9 +11,10 @@ type Props = {
   isFirstInGroup: boolean;
   isLastInGroup: boolean;
   showTimestamp?: boolean;
-  status?: 'sent' | 'delivered' | 'read';
+  status?: 'queued' | 'pending' | 'sent' | 'delivered' | 'read' | 'failed';
   onLongPress?: (message: Message) => void;
   disableActions?: boolean;
+  onRetry?: (message: Message) => void;
 };
 
 const ChatBubbleComponent: React.FC<Props> = ({
@@ -25,6 +26,7 @@ const ChatBubbleComponent: React.FC<Props> = ({
   status,
   onLongPress,
   disableActions,
+  onRetry,
 }) => {
   const radius = getRadius(isOwn, isFirstInGroup, isLastInGroup);
 
@@ -33,19 +35,42 @@ const ChatBubbleComponent: React.FC<Props> = ({
     minute: '2-digit',
   });
 
+  const renderStatusIcon = () => {
+    if (!status) {
+      return null;
+    }
+    const baseProps = { size: 14, style: styles.statusIcon } as const;
+    switch (status) {
+      case 'queued':
+      case 'pending':
+        return <Ionicons name="time-outline" color="#fbbf24" {...baseProps} />;
+      case 'sent':
+        return <Ionicons name="checkmark" color="#bae6fd" {...baseProps} />;
+      case 'delivered':
+        return <Ionicons name="checkmark-done" color="#d1fae5" {...baseProps} />;
+      case 'read':
+        return <Ionicons name="checkmark-done" color="#34d399" {...baseProps} />;
+      case 'failed':
+        return (
+          <TouchableOpacity
+            disabled={!onRetry}
+            onPress={onRetry ? () => onRetry(message) : undefined}
+            style={styles.retryWrapper}
+          >
+            <Ionicons name="alert-circle" color="#f87171" {...baseProps} />
+          </TouchableOpacity>
+        );
+      default:
+        return null;
+    }
+  };
+
   const content = (
     <View style={styles.bubbleContent}>
       <Text style={isOwn ? styles.textOwn : styles.textOther}>{message.body}</Text>
       <View style={styles.metaRow}>
         {showTimestamp ? <Text style={styles.timestamp}>{time}</Text> : null}
-        {isOwn && status ? (
-          <Ionicons
-            name={status === 'read' ? 'checkmark-done' : 'checkmark'}
-            size={14}
-            color={status === 'read' ? '#a7f3d0' : '#bae6fd'}
-            style={styles.statusIcon}
-          />
-        ) : null}
+        {isOwn ? renderStatusIcon() : null}
       </View>
     </View>
   );
@@ -158,6 +183,9 @@ const styles = StyleSheet.create({
     color: '#d1d5db',
   },
   statusIcon: {
+    marginLeft: 4,
+  },
+  retryWrapper: {
     marginLeft: 4,
   },
 });

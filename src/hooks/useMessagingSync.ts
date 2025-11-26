@@ -32,6 +32,23 @@ type MessageEnvelope = RealtimePayload & {
 const MESSAGE_EVENT_TYPES = new Set(['message', 'message:new']);
 
 const POLL_INTERVAL_MS = 12_000;
+const looksLikeNetworkError = (error: unknown) => {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+  const candidate = error as { response?: unknown; code?: string; message?: string };
+  if (candidate.response) {
+    return false;
+  }
+  const code = candidate.code ?? '';
+  const message = candidate.message ?? '';
+  return (
+    code === 'ERR_NETWORK' ||
+    code === 'ECONNABORTED' ||
+    /network\s?error/i.test(message ?? '') ||
+    /timeout/i.test(message ?? '')
+  );
+};
 
 export function useMessagingSync(enabled: boolean) {
   const token = useAuthStore((state) => state.accessToken);
@@ -43,6 +60,9 @@ export function useMessagingSync(enabled: boolean) {
   const activeThreadId = useMessagingStore((state) => state.activeThreadId);
   const setMessagesForThread = useMessagingStore((state) => state.setMessagesForThread);
   const setTypingStatus = useMessagingStore((state) => state.setTypingStatus);
+  const flushPendingQueue = useMessagingStore((state) => state.flushPendingQueue);
+  const hydratePendingQueue = useMessagingStore((state) => state.hydratePendingQueue);
+  const setTransportOnline = useMessagingStore((state) => state.setTransportOnline);
   const activeThreadIdRef = useRef<string | null>(activeThreadId);
   useEffect(() => {
     activeThreadIdRef.current = activeThreadId;
@@ -52,9 +72,17 @@ export function useMessagingSync(enabled: boolean) {
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const realtimeConnectedRef = useRef(false);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+  const deliveredAckedRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     setSessionUserId(rawCurrentUserId == null ? null : String(rawCurrentUserId));
   }, [rawCurrentUserId, setSessionUserId]);
+
+  useEffect(() => {
+    if (!enabled) {
+      return;
+    }
+    hydratePendingQueue().catch(() => undefined);
+  }, [enabled, hydratePendingQueue]);
 
   const stopPolling = useCallback(() => {
     if (pollTimerRef.current) {
@@ -66,13 +94,64 @@ export function useMessagingSync(enabled: boolean) {
     }
   }, []);
 
+  const ackDelivered = useCallback(
+    (messages: Message[]) => {
+      const sessionKey = rawCurrentUserId != null ? String(rawCurrentUserId) : null;
+      messages.forEach((message) => {
+        const senderId =
+          message.sender?.id != null ? String(message.sender.id) : undefined;
+        const isOwn = senderId && sessionKey ? senderId === sessionKey : false;
+        if (isOwn || message.id == null) {
+          return;
+        }
+        const ackKey = String(message.id);
+        if (deliveredAckedRef.current.has(ackKey)) {
+          return;
+        }
+        deliveredAckedRef.current.add(ackKey);
+        messagingApi.ackMessage(ackKey, 'delivered').catch(() => undefined);
+      });
+    },
+    [rawCurrentUserId],
+  );
+
+  const resolveLatestCursor = useCallback((threadId: string | null) => {
+    if (!threadId) {
+      return null;
+    }
+    const messages = useMessagingStore.getState().messagesByThread[threadId] ?? [];
+    if (!messages.length) {
+      return null;
+    }
+    const latest = messages.reduce((current, candidate) => {
+      if (!current) {
+        return candidate;
+      }
+      const currentTime = new Date(current.created_at).valueOf();
+      const candidateTime = new Date(candidate.created_at).valueOf();
+      return candidateTime > currentTime ? candidate : current;
+    });
+    if (!latest?.id) {
+      return null;
+    }
+    return String(latest.id);
+  }, []);
+
   const pollThreadsAndActiveMessages = useCallback(() => {
     if (typeof __DEV__ !== 'undefined' && __DEV__) {
       console.log('messagingSync: polling threads');
     }
-    syncThreads().catch((error) => {
-      console.warn('messagingSync: failed to sync threads', error);
-    });
+    syncThreads()
+      .then(() => {
+        setTransportOnline(true);
+        flushPendingQueue().catch(() => undefined);
+      })
+      .catch((error) => {
+        console.warn('messagingSync: failed to sync threads', error);
+        if (looksLikeNetworkError(error)) {
+          setTransportOnline(false);
+        }
+      });
     const { activeThreadId: activeIdFromStore } = useMessagingStore.getState();
     if (!activeIdFromStore) {
       return;
@@ -82,15 +161,44 @@ export function useMessagingSync(enabled: boolean) {
         threadId: activeIdFromStore,
       });
     }
+    const since = resolveLatestCursor(activeIdFromStore);
     messagingApi
-      .getThreadMessages(activeIdFromStore)
+      .syncThreadMessages(activeIdFromStore, since ?? undefined)
       .then((messages) => {
-        setMessagesForThread(activeIdFromStore, messages);
+        if (messages.length) {
+          setMessagesForThread(activeIdFromStore, messages);
+          ackDelivered(messages);
+        }
+        setTransportOnline(true);
+        flushPendingQueue().catch(() => undefined);
       })
       .catch((error) => {
         console.warn('messagingSync: failed to refresh active thread messages', error);
+        if (looksLikeNetworkError(error)) {
+          setTransportOnline(false);
+          return;
+        }
+        messagingApi
+          .getThreadMessages(activeIdFromStore)
+          .then((messages) => {
+            setMessagesForThread(activeIdFromStore, messages);
+            ackDelivered(messages);
+          })
+          .catch((fallbackError) => {
+            console.warn(
+              'messagingSync: failed to refresh active thread messages (fallback)',
+              fallbackError,
+            );
+          });
       });
-  }, [setMessagesForThread, syncThreads]);
+  }, [
+    ackDelivered,
+    flushPendingQueue,
+    resolveLatestCursor,
+    setMessagesForThread,
+    setTransportOnline,
+    syncThreads,
+  ]);
 
   const ensurePolling = useCallback(() => {
     const shouldPoll =
@@ -240,8 +348,10 @@ export function useMessagingSync(enabled: boolean) {
         });
       }
       appendMessage(normalizedThreadId, messageForStore);
+      ackDelivered([messageForStore]);
     },
     [
+      ackDelivered,
       appendMessage,
       extractThreadId,
       normalizeEnvelope,
@@ -258,9 +368,13 @@ export function useMessagingSync(enabled: boolean) {
         const status = (payload as any).status;
         if (status === 'open') {
           realtimeConnectedRef.current = true;
+          setTransportOnline(true);
           stopPolling();
+          pollThreadsAndActiveMessages();
+          flushPendingQueue().catch(() => undefined);
         } else if (status === 'closed') {
           realtimeConnectedRef.current = false;
+          setTransportOnline(false);
           ensurePolling();
         } else if (status === 'connecting') {
           realtimeConnectedRef.current = false;
@@ -296,7 +410,15 @@ export function useMessagingSync(enabled: boolean) {
         setTypingStatus(threadKey, status);
       }
     },
-    [ensurePolling, handleRealtimeMessage, setTypingStatus, stopPolling],
+    [
+      ensurePolling,
+      flushPendingQueue,
+      handleRealtimeMessage,
+      pollThreadsAndActiveMessages,
+      setTransportOnline,
+      setTypingStatus,
+      stopPolling,
+    ],
   );
 
   useEffect(() => {
@@ -305,6 +427,7 @@ export function useMessagingSync(enabled: boolean) {
       connectionRef.current = null;
       realtimeConnectedRef.current = false;
       stopPolling();
+      setTransportOnline(false);
       if (!token) {
         resetMessaging();
       }
@@ -329,6 +452,7 @@ export function useMessagingSync(enabled: boolean) {
     pollThreadsAndActiveMessages,
     resetMessaging,
     stopPolling,
+    setTransportOnline,
     token,
   ]);
 }

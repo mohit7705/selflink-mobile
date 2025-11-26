@@ -1,7 +1,8 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 
 import * as messagingApi from '@api/messaging';
-import type { Message, Thread } from '@schemas/messaging';
+import type { Message, MessageAttachment, MessageStatus, Thread } from '@schemas/messaging';
 
 export type ThreadTypingStatus = {
   typing: boolean;
@@ -12,6 +13,22 @@ export type ThreadTypingStatus = {
 
 type MessagesByThread = Record<string, Message[]>;
 type UnreadMap = Record<string, number>;
+type PendingMessage = {
+  clientUuid: string;
+  threadId: string;
+  body: string;
+  attachments?: MessageAttachment[];
+  createdAt: string;
+  attempts: number;
+  nextAttemptAt?: number;
+  status: Exclude<MessageStatus, 'sent' | 'delivered' | 'read'>;
+  error?: string;
+};
+
+const PENDING_QUEUE_STORAGE_KEY = 'selflink-messaging-pending-queue';
+const MAX_SEND_ATTEMPTS = 4;
+const BASE_RETRY_MS = 2_000;
+const MAX_RETRY_MS = 60_000;
 
 const sortThreadsByUpdatedAt = (threads: Thread[]) =>
   [...threads].sort(
@@ -22,6 +39,9 @@ const sortMessagesChronologically = (messages: Message[]) =>
   [...messages].sort(
     (a, b) => new Date(a.created_at).valueOf() - new Date(b.created_at).valueOf(),
   );
+
+const deriveMessageKey = (message: Message) =>
+  String(message.client_uuid ?? message.id);
 
 const mergeMessagesChronologically = (
   existing: Message[] | undefined,
@@ -38,11 +58,11 @@ const mergeMessagesChronologically = (
   }
   const map = new Map<string, Message>();
   existing.forEach((message) => {
-    map.set(String(message.id), message);
+    map.set(deriveMessageKey(message), message);
   });
   let changed = false;
   incoming.forEach((message) => {
-    const key = String(message.id);
+    const key = deriveMessageKey(message);
     const current = map.get(key);
     if (!current) {
       changed = true;
@@ -52,7 +72,13 @@ const mergeMessagesChronologically = (
     if (
       current.body !== message.body ||
       current.created_at !== message.created_at ||
-      current.sender?.id !== message.sender?.id
+      current.sender?.id !== message.sender?.id ||
+      current.status !== message.status ||
+      current.client_uuid !== message.client_uuid ||
+      current.delivered_at !== message.delivered_at ||
+      current.read_at !== message.read_at ||
+      current.meta !== message.meta ||
+      current.type !== message.type
     ) {
       changed = true;
       map.set(key, message);
@@ -90,6 +116,37 @@ const normalizeThreadId = (threadId: string | number | null | undefined) => {
 
 const computeTotalUnread = (unreadByThread: UnreadMap) =>
   Object.values(unreadByThread).reduce((sum, value) => sum + Math.max(0, value), 0);
+
+const computeRetryDelayMs = (attempts: number) => {
+  const exponent = Math.max(0, attempts - 1);
+  return Math.min(MAX_RETRY_MS, BASE_RETRY_MS * 2 ** exponent);
+};
+
+const generateClientUuid = () => {
+  const globalCrypto = typeof globalThis !== 'undefined' ? (globalThis as any).crypto : null;
+  if (globalCrypto?.randomUUID) {
+    return globalCrypto.randomUUID();
+  }
+  return `msg-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+};
+
+const isLikelyNetworkError = (error: unknown) => {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+  const axiosLike = error as { code?: string; message?: string; response?: unknown };
+  if (axiosLike.response) {
+    return false;
+  }
+  const code = axiosLike.code ?? '';
+  const message = axiosLike.message ?? '';
+  return (
+    code === 'ERR_NETWORK' ||
+    code === 'ECONNABORTED' ||
+    /network\s?error/i.test(message ?? '') ||
+    /timeout/i.test(message ?? '')
+  );
+};
 
 const normalizeId = (value: unknown) => {
   if (value === null || value === undefined) {
@@ -216,9 +273,41 @@ const initialState = {
   isLoadingThreads: false,
   isLoadingMessages: false,
   error: undefined as string | undefined,
+  pendingMessages: [] as PendingMessage[],
+  transportOnline: true,
+  pendingQueueHydrated: false,
+  isFlushingQueue: false,
 };
 
 const pendingReadRequests = new Set<string>();
+const persistPendingQueue = async (queue: PendingMessage[]) => {
+  try {
+    await AsyncStorage.setItem(PENDING_QUEUE_STORAGE_KEY, JSON.stringify(queue));
+  } catch (error) {
+    console.warn('messagingStore: failed to persist pending queue', error);
+  }
+};
+
+const loadPendingQueue = async (): Promise<PendingMessage[]> => {
+  try {
+    const raw = await AsyncStorage.getItem(PENDING_QUEUE_STORAGE_KEY);
+    if (!raw) {
+      return [];
+    }
+    const parsed = JSON.parse(raw) as PendingMessage[];
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+    return parsed.map((item) => ({
+      ...item,
+      attempts: item.attempts ?? 0,
+      status: item.status ?? 'queued',
+    }));
+  } catch (error) {
+    console.warn('messagingStore: failed to load pending queue', error);
+    return [];
+  }
+};
 
 export type MessagingState = typeof initialState & {
   loadThreads: () => Promise<void>;
@@ -236,11 +325,52 @@ export type MessagingState = typeof initialState & {
   setSessionUserId: (userId: string | number | null) => void;
   recomputeTotalUnread: () => void;
   setTypingStatus: (threadId: string, status: ThreadTypingStatus | null) => void;
+  hydratePendingQueue: () => Promise<void>;
+  flushPendingQueue: (options?: { force?: boolean }) => Promise<void>;
+  retryPendingMessage: (clientUuid: string) => Promise<void>;
+  setTransportOnline: (online: boolean) => void;
   reset: () => void;
 };
 
-export const useMessagingStore = create<MessagingState>((set, get) => ({
-  ...initialState,
+export const useMessagingStore = create<MessagingState>((set, get) => {
+  const updateLocalStatus = (
+    threadId: string,
+    clientUuid: string,
+    status: MessageStatus,
+    extras?: Partial<Message>,
+  ) => {
+    const key = normalizeThreadId(threadId);
+    if (!key) {
+      return;
+    }
+    const state = get();
+    const messages = state.messagesByThread[key];
+    if (!messages || messages.length === 0) {
+      return;
+    }
+    const targetIndex = messages.findIndex(
+      (message) =>
+        message.client_uuid === clientUuid ||
+        deriveMessageKey(message) === clientUuid ||
+        String(message.id) === clientUuid,
+    );
+    if (targetIndex === -1) {
+      return;
+    }
+    const nextMessages = [...messages];
+    const current = nextMessages[targetIndex];
+    nextMessages[targetIndex] = {
+      ...current,
+      ...extras,
+      status,
+    };
+    set({
+      messagesByThread: { ...state.messagesByThread, [key]: nextMessages },
+    });
+  };
+
+  return {
+    ...initialState,
   async loadThreads() {
     set({ isLoadingThreads: true, error: undefined });
     try {
@@ -263,6 +393,9 @@ export const useMessagingStore = create<MessagingState>((set, get) => ({
     const messagesByThread = omitKey(state.messagesByThread, threadKey);
     const unreadByThread = omitKey(state.unreadByThread, threadKey);
     const totalUnread = computeTotalUnread(unreadByThread);
+    const pendingMessages = state.pendingMessages.filter(
+      (pending) => pending.threadId !== threadKey,
+    );
     const activeThreadId =
       state.activeThreadId === threadKey ? null : state.activeThreadId;
     set({
@@ -271,7 +404,11 @@ export const useMessagingStore = create<MessagingState>((set, get) => ({
       unreadByThread,
       totalUnread,
       activeThreadId,
+      pendingMessages,
     });
+    if (pendingMessages.length !== state.pendingMessages.length) {
+      persistPendingQueue(pendingMessages);
+    }
     try {
       await messagingApi.deleteThread(threadId);
       await get().syncThreads();
@@ -426,13 +563,84 @@ export const useMessagingStore = create<MessagingState>((set, get) => ({
     }
   },
   async sendMessage(threadId, text) {
-    if (!text.trim()) {
+    const body = text.trim();
+    if (!body) {
       return;
     }
+    const clientUuid = generateClientUuid();
+    const createdAt = new Date().toISOString();
+    const threadKey = normalizeThreadId(threadId) || String(threadId);
+    const optimistic: Message = {
+      id: clientUuid,
+      thread: threadKey,
+      sender: { id: get().sessionUserId ?? 'me' } as unknown as Message['sender'],
+      body,
+      type: 'text',
+      meta: null,
+      status: get().transportOnline ? 'pending' : 'queued',
+      client_uuid: clientUuid,
+      created_at: createdAt,
+    };
+
+    get().appendMessage(threadId, optimistic);
+
+    const queueCandidate: PendingMessage = {
+      clientUuid,
+      threadId: threadKey,
+      body,
+      createdAt,
+      attempts: 0,
+      status: 'queued',
+    };
+
+    const enqueuePending = (entry: PendingMessage) => {
+      set((state) => {
+        const existingIndex = state.pendingMessages.findIndex(
+          (item) => item.clientUuid === entry.clientUuid,
+        );
+        const pendingMessages =
+          existingIndex === -1
+            ? [...state.pendingMessages, entry]
+            : state.pendingMessages.map((item, index) =>
+                index === existingIndex ? { ...item, ...entry } : item,
+              );
+        persistPendingQueue(pendingMessages);
+        return { pendingMessages };
+      });
+    };
+
+    if (!get().transportOnline) {
+      enqueuePending(queueCandidate);
+      updateLocalStatus(threadKey, clientUuid, 'queued');
+      return;
+    }
+
     try {
-      const message = await messagingApi.sendMessage(threadId, text.trim());
-      get().appendMessage(message.thread, message);
+      const message = await messagingApi.sendMessageWithMeta(threadId, body, {
+        clientUuid,
+      });
+      const normalized =
+        message.client_uuid || message.status || message.id === clientUuid
+          ? message
+          : { ...message, client_uuid: clientUuid };
+      get().appendMessage(normalized.thread, {
+        ...normalized,
+        status: normalized.status ?? 'sent',
+      });
     } catch (error) {
+      if (isLikelyNetworkError(error)) {
+        enqueuePending({
+          ...queueCandidate,
+          attempts: 1,
+          status: 'queued',
+          error: error instanceof Error ? error.message : undefined,
+          nextAttemptAt: Date.now() + computeRetryDelayMs(1),
+        });
+        updateLocalStatus(threadKey, clientUuid, 'queued', {
+          client_uuid: clientUuid,
+        });
+        return;
+      }
       const detail = error instanceof Error ? error.message : 'Unable to send message.';
       set({ error: detail });
       throw error;
@@ -445,25 +653,39 @@ export const useMessagingStore = create<MessagingState>((set, get) => ({
     if (!key) {
       return;
     }
-    const normalizedMessage =
-      message.thread === key && typeof message.id === 'string'
-        ? message
-        : {
-            ...message,
-            id: String(message.id),
-            thread: key,
-          };
     const state = get();
+    const clientUuid =
+      (message as Message & { client_uuid?: string | number | null }).client_uuid ??
+      (message as any)?.clientUuid ??
+      null;
+    const normalizedId =
+      typeof (message as Message & { id: string | number }).id === 'string'
+        ? (message as Message & { id: string | number }).id
+        : String((message as Message & { id: string | number }).id);
+    let normalizedMessage: Message = {
+      ...message,
+      id: normalizedId,
+      thread: key,
+      client_uuid: clientUuid != null ? String(clientUuid) : undefined,
+    };
     let threads = state.threads;
     let threadFromState = threads.find((thread) => String(thread.id) === key);
     const sessionUserId = state.sessionUserId;
     const isActiveThread = state.activeThreadId === key;
-    const isOwnMessage =
-      sessionUserId != null &&
-      normalizedMessage.sender?.id != null &&
-      String(normalizedMessage.sender.id) === sessionUserId;
+    const senderId =
+      normalizedMessage.sender?.id != null
+        ? String(normalizedMessage.sender.id)
+        : null;
+    const isOwnMessage = sessionUserId != null && senderId === sessionUserId;
+    if (!normalizedMessage.status && isOwnMessage) {
+      normalizedMessage = {
+        ...normalizedMessage,
+        status: state.transportOnline ? 'sent' : 'pending',
+      };
+    }
     let unreadByThread = state.unreadByThread;
     let unreadChanged = false;
+    let pendingMessages = state.pendingMessages;
 
     if (!threadFromState) {
       const placeholderUnread = isOwnMessage || isActiveThread ? 0 : 1;
@@ -487,7 +709,7 @@ export const useMessagingStore = create<MessagingState>((set, get) => ({
 
     const existingMessages = state.messagesByThread[key] ?? [];
     const duplicateIndex = existingMessages.findIndex(
-      (item) => String(item.id) === normalizedMessage.id,
+      (item) => deriveMessageKey(item) === deriveMessageKey(normalizedMessage),
     );
     let messagesByThread = state.messagesByThread;
     let insertedNew = false;
@@ -509,7 +731,11 @@ export const useMessagingStore = create<MessagingState>((set, get) => ({
         currentMessage.created_at !== normalizedMessage.created_at ||
         currentMessage.meta !== normalizedMessage.meta ||
         currentMessage.type !== normalizedMessage.type ||
-        currentMessage.sender?.id !== normalizedMessage.sender?.id;
+        currentMessage.sender?.id !== normalizedMessage.sender?.id ||
+        currentMessage.status !== normalizedMessage.status ||
+        currentMessage.delivered_at !== normalizedMessage.delivered_at ||
+        currentMessage.read_at !== normalizedMessage.read_at ||
+        currentMessage.client_uuid !== normalizedMessage.client_uuid;
       if (needsReplacement) {
         const nextMessages = [...existingMessages];
         nextMessages[duplicateIndex] = normalizedMessage;
@@ -574,10 +800,23 @@ export const useMessagingStore = create<MessagingState>((set, get) => ({
       }
     }
 
+    if (normalizedMessage.client_uuid) {
+      const pendingIndex = pendingMessages.findIndex(
+        (pending) => pending.clientUuid === normalizedMessage.client_uuid,
+      );
+      if (pendingIndex !== -1) {
+        pendingMessages = pendingMessages.filter(
+          (pending) => pending.clientUuid !== normalizedMessage.client_uuid,
+        );
+        persistPendingQueue(pendingMessages);
+      }
+    }
+
     const changed =
       messagesByThread !== state.messagesByThread ||
       threads !== state.threads ||
-      unreadByThread !== state.unreadByThread;
+      unreadByThread !== state.unreadByThread ||
+      pendingMessages !== state.pendingMessages;
 
     if (!changed) {
       return;
@@ -587,6 +826,7 @@ export const useMessagingStore = create<MessagingState>((set, get) => ({
       messagesByThread,
       threads,
       unreadByThread,
+      pendingMessages,
       totalUnread: unreadChanged ? computeTotalUnread(unreadByThread) : state.totalUnread,
     });
   },
@@ -646,6 +886,7 @@ export const useMessagingStore = create<MessagingState>((set, get) => ({
     if (normalized == null) {
       if (current !== null) {
         set({ ...initialState });
+        persistPendingQueue([]).catch(() => undefined);
       }
       return;
     }
@@ -653,6 +894,7 @@ export const useMessagingStore = create<MessagingState>((set, get) => ({
       return;
     }
     set({ ...initialState, sessionUserId: normalized });
+    persistPendingQueue([]).catch(() => undefined);
     const refreshData = async () => {
       await get()
         .loadThreads()
@@ -687,10 +929,127 @@ export const useMessagingStore = create<MessagingState>((set, get) => ({
       return { ...state, typingByThread: nextTyping };
     });
   },
+  async hydratePendingQueue() {
+    if (get().pendingQueueHydrated) {
+      return;
+    }
+    const queue = await loadPendingQueue();
+    set({ pendingMessages: queue, pendingQueueHydrated: true });
+  },
+  async flushPendingQueue(options) {
+    const state = get();
+    if ((state.isFlushingQueue || state.pendingMessages.length === 0) && !options?.force) {
+      return;
+    }
+    if (!state.transportOnline && !options?.force) {
+      return;
+    }
+    set({ isFlushingQueue: true });
+    let queue = [...get().pendingMessages];
+    try {
+      for (const pending of queue) {
+        if (!options?.force && pending.status === 'failed') {
+          continue;
+        }
+        if (
+          !options?.force &&
+          pending.nextAttemptAt &&
+          pending.nextAttemptAt > Date.now()
+        ) {
+          continue;
+        }
+        queue = queue.map((item) =>
+          item.clientUuid === pending.clientUuid ? { ...item, status: 'pending' } : item,
+        );
+        set({ pendingMessages: queue });
+        updateLocalStatus(pending.threadId, pending.clientUuid, 'pending', {
+          client_uuid: pending.clientUuid,
+        });
+        try {
+          const message = await messagingApi.sendMessageWithMeta(
+            pending.threadId,
+            pending.body,
+            {
+              clientUuid: pending.clientUuid,
+              attachments: pending.attachments,
+            },
+          );
+          get().appendMessage(message.thread, {
+            ...message,
+            status: message.status ?? 'sent',
+            client_uuid: message.client_uuid ?? pending.clientUuid,
+          });
+          queue = get().pendingMessages.filter(
+            (item) => item.clientUuid !== pending.clientUuid,
+          );
+          set({ pendingMessages: queue });
+        } catch (error) {
+          const attempts = pending.attempts + 1;
+          const nextAttemptAt = Date.now() + computeRetryDelayMs(attempts);
+          const status = attempts >= MAX_SEND_ATTEMPTS ? 'failed' : 'queued';
+          queue = queue.map((item) =>
+            item.clientUuid === pending.clientUuid
+              ? {
+                  ...item,
+                  attempts,
+                  status,
+                  nextAttemptAt,
+                  error: error instanceof Error ? error.message : undefined,
+                }
+              : item,
+          );
+          set({ pendingMessages: queue });
+          if (status === 'failed') {
+            updateLocalStatus(pending.threadId, pending.clientUuid, 'failed', {
+              client_uuid: pending.clientUuid,
+            });
+          } else {
+            updateLocalStatus(pending.threadId, pending.clientUuid, 'queued', {
+              client_uuid: pending.clientUuid,
+            });
+          }
+        }
+      }
+      persistPendingQueue(queue);
+    } finally {
+      set({ isFlushingQueue: false });
+    }
+  },
+  async retryPendingMessage(clientUuid) {
+    if (!clientUuid) {
+      return;
+    }
+    set((state) => {
+      const pendingMessages: PendingMessage[] = state.pendingMessages.map((pending) =>
+        pending.clientUuid === clientUuid
+          ? {
+              ...pending,
+              status: 'queued' as PendingMessage['status'],
+              attempts: 0,
+              nextAttemptAt: Date.now(),
+            }
+          : pending,
+      );
+      persistPendingQueue(pendingMessages);
+      return { pendingMessages };
+    });
+    await get().flushPendingQueue({ force: true });
+  },
+  setTransportOnline(online) {
+    if (get().transportOnline === online) {
+      return;
+    }
+    set({ transportOnline: online });
+    if (online) {
+      get().flushPendingQueue().catch(() => undefined);
+    }
+  },
   reset() {
     set({ ...initialState });
+    persistPendingQueue([]).catch(() => undefined);
   },
-}));
+  };
+});
 
 export const selectThreads = (state: MessagingState) => state.threads;
 export const selectIsLoadingThreads = (state: MessagingState) => state.isLoadingThreads;

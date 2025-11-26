@@ -39,6 +39,10 @@ export interface Message {
   body: string;
   type: string;
   meta: Record<string, unknown> | null;
+  status?: MessageStatus;
+  client_uuid?: string | null;
+  delivered_at?: string | null;
+  read_at?: string | null;
   created_at: string;
 }
 
@@ -47,4 +51,23 @@ export interface SendMessagePayload {
   body: string;
   type?: string;
   meta?: Record<string, unknown> | null;
+  client_uuid?: string;
+  attachments?: MessageAttachment[];
 }
+
+export type MessageStatus =
+  | 'queued'
+  | 'pending'
+  | 'sent'
+  | 'delivered'
+  | 'read'
+  | 'failed';
+
+export type MessageAttachment = {
+  url: string;
+  type?: string;
+  name?: string;
+  width?: number | null;
+  height?: number | null;
+  duration?: number | null;
+};
