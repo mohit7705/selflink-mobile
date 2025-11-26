@@ -2,9 +2,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { memo } from 'react';
 import { Animated, Dimensions, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { VideoPostPlayer } from '@components/VideoPostPlayer';
 import { UserAvatar } from '@components/UserAvatar';
+import { VideoPostPlayer } from '@components/VideoPostPlayer';
 import type { Post } from '@schemas/social';
+
 import { usePressScaleAnimation } from '../styles/animations';
 
 type Props = {
@@ -40,7 +41,12 @@ function SoulReelItemComponent({
   return (
     <View style={[styles.container, { height: SCREEN_HEIGHT }]}>
       {post.video ? (
-        <VideoPostPlayer source={post.video} shouldPlay={isActive} mode="reel" muted={muted} />
+        <VideoPostPlayer
+          source={post.video}
+          shouldPlay={isActive}
+          mode="reel"
+          muted={muted}
+        />
       ) : null}
 
       <View style={styles.overlay}>

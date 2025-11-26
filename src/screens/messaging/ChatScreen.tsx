@@ -29,6 +29,8 @@ import {
 
 import { ChatBubble } from '@components/messaging/ChatBubble';
 import TypingIndicator from '@components/messaging/TypingIndicator';
+import { useMultiImagePicker } from '@hooks/useMultiImagePicker';
+import { useVideoPicker, type PickedVideo } from '@hooks/useVideoPicker';
 import { navigateToUserProfile } from '@navigation/helpers';
 import type { Message, MessageStatus, PendingAttachment } from '@schemas/messaging';
 import {
@@ -43,8 +45,6 @@ import {
   type ThreadTypingStatus,
 } from '@store/messagingStore';
 import { theme } from '@theme';
-import { useMultiImagePicker } from '@hooks/useMultiImagePicker';
-import { useVideoPicker, type PickedVideo } from '@hooks/useVideoPicker';
 
 interface RouteParams {
   threadId: string;
@@ -476,7 +476,10 @@ export function ChatScreen() {
           showsHorizontalScrollIndicator={false}
         >
           {pendingAttachments.map((attachment) => (
-            <View key={`${attachment.uri}-${attachment.type}`} style={styles.attachmentChip}>
+            <View
+              key={`${attachment.uri}-${attachment.type}`}
+              style={styles.attachmentChip}
+            >
               {attachment.type === 'image' ? (
                 <Image source={{ uri: attachment.uri }} style={styles.attachmentThumb} />
               ) : (
@@ -504,7 +507,9 @@ export function ChatScreen() {
         <View style={styles.attachmentButtons}>
           <TouchableOpacity
             onPress={handlePickImages}
-            disabled={!canAddMoreImages || Boolean(selectedVideo) || isPickingImages || isSending}
+            disabled={
+              !canAddMoreImages || Boolean(selectedVideo) || isPickingImages || isSending
+            }
             style={styles.attachmentButton}
           >
             <Ionicons
@@ -520,7 +525,10 @@ export function ChatScreen() {
           <TouchableOpacity
             onPress={handlePickVideo}
             disabled={
-              Boolean(selectedVideo) || selectedImages.length > 0 || isPickingVideo || isSending
+              Boolean(selectedVideo) ||
+              selectedImages.length > 0 ||
+              isPickingVideo ||
+              isSending
             }
             style={styles.attachmentButton}
           >
@@ -556,7 +564,9 @@ export function ChatScreen() {
         <TouchableOpacity
           onPress={handleSend}
           style={styles.sendButton}
-          disabled={isSending || (input.trim().length === 0 && pendingAttachments.length === 0)}
+          disabled={
+            isSending || (input.trim().length === 0 && pendingAttachments.length === 0)
+          }
         >
           <Ionicons
             name="send"

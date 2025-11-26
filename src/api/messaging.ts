@@ -66,7 +66,9 @@ const normalizeAttachments = (
           | 'video',
         mimeType: typeof mime === 'string' ? mime : '',
         width:
-          (resolved as any)?.width ?? (resolved as any)?.image_width ?? (item as any)?.width,
+          (resolved as any)?.width ??
+          (resolved as any)?.image_width ??
+          (item as any)?.width,
         height:
           (resolved as any)?.height ??
           (resolved as any)?.image_height ??
@@ -346,14 +348,11 @@ export async function sendMessageWithAttachments(
     const name =
       attachment.name ??
       `attachment-${index + 1}.${attachment.mime?.split('/')?.[1] ?? 'bin'}`;
-    form.append(
-      'attachments',
-      {
-        uri: attachment.uri,
-        name,
-        type: attachment.mime,
-      } as any,
-    );
+    form.append('attachments', {
+      uri: attachment.uri,
+      name,
+      type: attachment.mime,
+    } as any);
   });
 
   const response = await apiClient.request<string>({
@@ -369,7 +368,10 @@ export async function sendMessageWithAttachments(
   const raw = typeof response.data === 'string' ? response.data : '';
   const parsed = raw ? JSON.parse(raw) : null;
   const precise = raw ? parseJsonPreservingLargeInts<MessageResponse>(raw) : parsed;
-  return normalizeMessage(parsed as MessageResponse, precise as MessageResponse | undefined);
+  return normalizeMessage(
+    parsed as MessageResponse,
+    precise as MessageResponse | undefined,
+  );
 }
 
 export async function ackMessage(

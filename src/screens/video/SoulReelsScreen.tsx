@@ -15,15 +15,15 @@ import {
   Dimensions,
 } from 'react-native';
 
+import * as socialApi from '@api/social';
 import { getForYouVideoFeed } from '@api/videoFeed';
-import { SoulReelItem } from '@components/SoulReelItem';
 import { CommentContent } from '@components/comments/CommentContent';
+import { SoulReelItem } from '@components/SoulReelItem';
 import { UserAvatar } from '@components/UserAvatar';
 import { useToast } from '@context/ToastContext';
 import type { Comment, Post } from '@schemas/social';
 import type { VideoFeedItem } from '@schemas/videoFeed';
 import { useFeedStore } from '@store/feedStore';
-import * as socialApi from '@api/social';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -152,7 +152,10 @@ export function SoulReelsScreen() {
   }, [engagementById, items]);
 
   const updateEngagement = useCallback(
-    (postId: string | number, delta: Partial<{ liked: boolean; likeCount: number; commentCount: number }>) => {
+    (
+      postId: string | number,
+      delta: Partial<{ liked: boolean; likeCount: number; commentCount: number }>,
+    ) => {
       const key = String(postId);
       setEngagementById((prev) => {
         const current =
@@ -160,7 +163,11 @@ export function SoulReelsScreen() {
           (() => {
             const base = items.find((item) => String(item.id) === key)?.post;
             return base
-              ? { liked: base.liked, likeCount: base.like_count, commentCount: base.comment_count }
+              ? {
+                  liked: base.liked,
+                  likeCount: base.like_count,
+                  commentCount: base.comment_count,
+                }
               : { liked: false, likeCount: 0, commentCount: 0 };
           })();
         return {
@@ -183,12 +190,19 @@ export function SoulReelsScreen() {
         (() => {
           const base = items.find((item) => String(item.id) === key)?.post;
           return base
-            ? { liked: base.liked, likeCount: base.like_count, commentCount: base.comment_count }
+            ? {
+                liked: base.liked,
+                likeCount: base.like_count,
+                commentCount: base.comment_count,
+              }
             : { liked: false, likeCount: 0, commentCount: 0 };
         })();
       const nextLiked = !current.liked;
       const nextLikeCount = current.likeCount + (nextLiked ? 1 : -1);
-      updateEngagement(postId, { liked: nextLiked, likeCount: Math.max(0, nextLikeCount) });
+      updateEngagement(postId, {
+        liked: nextLiked,
+        likeCount: Math.max(0, nextLikeCount),
+      });
       pendingLikes.current.add(key);
       try {
         if (nextLiked) {
@@ -250,7 +264,9 @@ export function SoulReelsScreen() {
       setComments((prev) => [...prev, newComment]);
       setCommentText('');
       updateEngagement(commentingPost.id, {
-        commentCount: (engagementById[String(commentingPost.id)]?.commentCount ?? commentingPost.comment_count) + 1,
+        commentCount:
+          (engagementById[String(commentingPost.id)]?.commentCount ??
+            commentingPost.comment_count) + 1,
       });
     } catch (err) {
       toast.push({
@@ -261,7 +277,15 @@ export function SoulReelsScreen() {
     } finally {
       setCommentPending(false);
     }
-  }, [addCommentToStore, commentPending, commentText, commentingPost, engagementById, toast, updateEngagement]);
+  }, [
+    addCommentToStore,
+    commentPending,
+    commentText,
+    commentingPost,
+    engagementById,
+    toast,
+    updateEngagement,
+  ]);
   const renderItem = useCallback(
     ({ item }: { item: VideoFeedItem }) => (
       <SoulReelItem
@@ -271,7 +295,9 @@ export function SoulReelsScreen() {
         onToggleMute={() => setMuted((prev) => !prev)}
         onLike={handleLike}
         onComment={(postId) => {
-          const matched = derivedItems.find((entry) => String(entry.id) === String(postId));
+          const matched = derivedItems.find(
+            (entry) => String(entry.id) === String(postId),
+          );
           if (matched) {
             openComments(matched.post);
           }
@@ -376,7 +402,11 @@ export function SoulReelsScreen() {
                 keyExtractor={(item) => String(item.id)}
                 renderItem={({ item }) => (
                   <View style={styles.commentRow}>
-                    <UserAvatar uri={item.author.photo} label={item.author.name} size={34} />
+                    <UserAvatar
+                      uri={item.author.photo}
+                      label={item.author.name}
+                      size={34}
+                    />
                     <View style={styles.commentBody}>
                       <Text style={styles.commentAuthor}>{item.author.name}</Text>
                       <CommentContent text={item.body} media={item.media} />
