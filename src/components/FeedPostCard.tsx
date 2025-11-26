@@ -1,11 +1,10 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { memo, useCallback, useRef, useState } from 'react';
 import {
   Alert,
   Animated,
   Pressable as RNPressable,
-  Pressable,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -18,9 +17,9 @@ import type { Post } from '@schemas/social';
 import { useAuthStore } from '@store/authStore';
 import { useFeedStore } from '@store/feedStore';
 import { theme } from '@theme';
-import { useEntranceAnimation, usePressScaleAnimation } from '../styles/animations';
 
 import { UserAvatar } from './UserAvatar';
+import { useEntranceAnimation, usePressScaleAnimation } from '../styles/animations';
 
 interface Props {
   post: Post;

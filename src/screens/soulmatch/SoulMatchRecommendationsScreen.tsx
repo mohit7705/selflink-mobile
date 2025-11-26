@@ -21,8 +21,8 @@ import { useToast } from '@context/ToastContext';
 import { SoulMatchStackParamList } from '@navigation/types';
 import { SoulmatchResult } from '@schemas/soulmatch';
 import { fetchRecommendations } from '@services/api/soulmatch';
-import { buildBadges, formatScore, scoreTone } from '@utils/soulmatch';
 import { theme } from '@theme/index';
+import { buildBadges, formatScore, scoreTone } from '@utils/soulmatch';
 
 type Nav = NativeStackNavigationProp<SoulMatchStackParamList>;
 
@@ -31,13 +31,7 @@ type Props = {
   skipAutoLoad?: boolean;
 };
 
-function AnimatedCard({
-  children,
-  delay,
-}: {
-  children: React.ReactNode;
-  delay: number;
-}) {
+function AnimatedCard({ children, delay }: { children: React.ReactNode; delay: number }) {
   const opacity = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(0.96)).current;
 
@@ -97,7 +91,11 @@ function RecommendationCard({
           {badges.length > 0 ? (
             <View style={styles.tags}>
               {badges.map((tag) => (
-                <BadgePill key={tag} label={tag} tone={tone === 'warning' ? 'warning' : 'default'} />
+                <BadgePill
+                  key={tag}
+                  label={tag}
+                  tone={tone === 'warning' ? 'warning' : 'default'}
+                />
               ))}
             </View>
           ) : null}
@@ -135,7 +133,7 @@ export function SoulMatchRecommendationsScreen({
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, [initialItems.length, skipAutoLoad, toast]);
 
   useFocusEffect(
     useCallback(() => {

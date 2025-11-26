@@ -36,13 +36,16 @@ const asIdentifier = (value: unknown): string | null => {
   return null;
 };
 
-const normalizeInsight = (input: any): { title: string; subtitle?: string; cta?: string } | null => {
+const normalizeInsight = (
+  input: any,
+): { title: string; subtitle?: string; cta?: string } | null => {
   if (!input || typeof input !== 'object') {
     return null;
   }
-  const title = 'title' in input && typeof (input as any).title === 'string'
-    ? (input as any).title
-    : null;
+  const title =
+    'title' in input && typeof (input as any).title === 'string'
+      ? (input as any).title
+      : null;
   const subtitle =
     'subtitle' in input && typeof (input as any).subtitle === 'string'
       ? (input as any).subtitle
@@ -143,8 +146,12 @@ const toFeedItem = (entry: any, index: number): FeedItem | null => {
           .filter(
             (
               profile: any,
-            ): profile is { id: number; name: string; avatarUrl: string | null; score: number | null } =>
-              Boolean(profile),
+            ): profile is {
+              id: number;
+              name: string;
+              avatarUrl: string | null;
+              score: number | null;
+            } => Boolean(profile),
           )
       : [];
     const id = asIdentifier((entry as any).id) ?? `soulmatch_${index}`;

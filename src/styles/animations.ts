@@ -1,17 +1,20 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Animated, Easing } from 'react-native';
 
 export const usePressScaleAnimation = (scaleTo = 0.98) => {
   const scale = useRef(new Animated.Value(1)).current;
 
-  const animateTo = (value: number) => {
-    Animated.timing(scale, {
-      toValue: value,
-      duration: 120,
-      easing: Easing.out(Easing.quad),
-      useNativeDriver: true,
-    }).start();
-  };
+  const animateTo = useCallback(
+    (value: number) => {
+      Animated.timing(scale, {
+        toValue: value,
+        duration: 120,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }).start();
+    },
+    [scale],
+  );
 
   const handlers = useMemo(
     () => ({
@@ -19,7 +22,7 @@ export const usePressScaleAnimation = (scaleTo = 0.98) => {
       onPressOut: () => animateTo(1),
       style: [{ transform: [{ scale }] }],
     }),
-    [scale, scaleTo],
+    [animateTo, scale, scaleTo],
   );
 
   return handlers;

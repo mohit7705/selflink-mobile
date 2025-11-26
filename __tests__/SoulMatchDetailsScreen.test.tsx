@@ -6,9 +6,12 @@ import { SoulmatchResult } from '@schemas/soulmatch';
 import { SoulMatchDetailsScreen } from '@screens/soulmatch/SoulMatchDetailsScreen';
 
 jest.mock('@react-navigation/native', () => {
-  const ReactMock = require('react');
   return {
-    useNavigation: () => ({ navigate: jest.fn(), goBack: jest.fn(), setOptions: jest.fn() }),
+    useNavigation: () => ({
+      navigate: jest.fn(),
+      goBack: jest.fn(),
+      setOptions: jest.fn(),
+    }),
     useRoute: () => ({ params: { userId: 2, displayName: 'Orion' } }),
   };
 });

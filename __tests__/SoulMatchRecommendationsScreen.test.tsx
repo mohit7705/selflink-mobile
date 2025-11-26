@@ -12,7 +12,6 @@ jest.mock('@context/ToastContext', () => ({
   useToast: () => ({ push: jest.fn() }),
 }));
 jest.mock('@react-navigation/native', () => {
-  const ReactMock = require('react');
   return {
     useNavigation: () => ({ navigate: jest.fn() }),
     useFocusEffect: (cb: (fn: () => void) => void) => cb(() => undefined),

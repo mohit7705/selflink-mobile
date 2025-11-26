@@ -1,6 +1,13 @@
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   Animated,
   FlatList,
@@ -14,10 +21,10 @@ import {
 import { FeedPostCard } from '@components/FeedPostCard';
 import { MatrixFeedCard } from '@components/MatrixFeedCard';
 import { MentorFeedCard } from '@components/MentorFeedCard';
-import { SoulMatchFeedCard } from '@components/SoulMatchFeedCard';
 import { InsightSkeleton } from '@components/skeleton/InsightSkeleton';
 import { PostSkeleton } from '@components/skeleton/PostSkeleton';
 import { SoulMatchSkeleton } from '@components/skeleton/SoulMatchSkeleton';
+import { SoulMatchFeedCard } from '@components/SoulMatchFeedCard';
 import type { FeedItem, FeedMode } from '@schemas/feed';
 import { useFeedStore } from '@store/feedStore';
 import { theme } from '@theme';
@@ -36,10 +43,7 @@ export function FeedScreen() {
   const scrollOffsets = useRef<Record<FeedMode, number>>({ for_you: 0, following: 0 });
   const indicator = useRef(new Animated.Value(currentMode === 'for_you' ? 0 : 1)).current;
   const [segmentWidth, setSegmentWidth] = useState(0);
-  const showFab = useMemo(
-    () => items.some((item) => item.type === 'post'),
-    [items],
-  );
+  const showFab = useMemo(() => items.some((item) => item.type === 'post'), [items]);
 
   useEffect(() => {
     loadFeed().catch(() => undefined);

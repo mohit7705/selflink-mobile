@@ -28,7 +28,11 @@ export const SkeletonShimmer = ({ width, height, borderRadius = 8 }: Props) => {
         ]}
       >
         <LinearGradient
-          colors={['rgba(255,255,255,0.02)', 'rgba(255,255,255,0.08)', 'rgba(255,255,255,0.02)']}
+          colors={[
+            'rgba(255,255,255,0.02)',
+            'rgba(255,255,255,0.08)',
+            'rgba(255,255,255,0.02)',
+          ]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={StyleSheet.absoluteFill}

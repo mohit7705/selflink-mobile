@@ -13,20 +13,16 @@ jest.mock('@services/api/astro', () => ({
 jest.mock('@react-navigation/native', () => {
   return {
     useNavigation: () => ({ navigate: jest.fn(), goBack: jest.fn() }),
-    NavigationContainer: ({ children }: { children: React.ReactNode }) => (
-      <>{children}</>
-    ),
+    NavigationContainer: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   };
 });
 jest.mock('@expo/vector-icons', () => {
-  const ReactMock = require('react');
   const { Text } = require('react-native');
   return {
     Ionicons: ({ name }: { name: string }) => <Text>{name}</Text>,
   };
 });
 jest.mock('@components/astro/AstroWheel', () => {
-  const ReactMock = require('react');
   const { Text } = require('react-native');
   return {
     PLANET_COLORS: { sun: '#fff', moon: '#eee', mars: '#f00' },

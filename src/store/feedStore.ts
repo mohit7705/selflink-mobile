@@ -22,7 +22,7 @@ interface FeedState {
 
 const MODES: FeedMode[] = ['for_you', 'following'];
 
-const emptyByMode = <T,>(value: T): Record<FeedMode, T> => ({
+const emptyByMode = <T>(value: T): Record<FeedMode, T> => ({
   for_you: value,
   following: value,
 });
@@ -31,10 +31,13 @@ const updateItemsAcrossModes = (
   itemsByMode: Record<FeedMode, FeedItem[]>,
   updater: (item: FeedItem) => FeedItem,
 ): Record<FeedMode, FeedItem[]> =>
-  MODES.reduce((acc, mode) => {
-    acc[mode] = itemsByMode[mode].map(updater);
-    return acc;
-  }, {} as Record<FeedMode, FeedItem[]>);
+  MODES.reduce(
+    (acc, mode) => {
+      acc[mode] = itemsByMode[mode].map(updater);
+      return acc;
+    },
+    {} as Record<FeedMode, FeedItem[]>,
+  );
 
 export const useFeedStore = create<FeedState>((set, get) => ({
   currentMode: 'for_you',
@@ -85,7 +88,9 @@ export const useFeedStore = create<FeedState>((set, get) => ({
       const fetcher =
         mode === 'following' ? socialApi.getFollowingFeed : socialApi.getForYouFeed;
       const response = await fetcher(nextUrl);
-      const existingKeys = new Set(itemsByMode[mode].map((item) => `${item.type}:${item.id}`));
+      const existingKeys = new Set(
+        itemsByMode[mode].map((item) => `${item.type}:${item.id}`),
+      );
       const incoming = response.items.filter((item) => {
         const key = `${item.type}:${item.id}`;
         if (existingKeys.has(key)) {
@@ -116,7 +121,7 @@ export const useFeedStore = create<FeedState>((set, get) => ({
     }
   },
   setMode(mode) {
-    set((state) => ({
+    set(() => ({
       currentMode: mode,
     }));
     const state = get();
@@ -129,7 +134,10 @@ export const useFeedStore = create<FeedState>((set, get) => ({
     const previousItems = get().itemsByMode;
     const updated = updateItemsAcrossModes(previousItems, (item) =>
       item.type === 'post' && String(item.post.id) === String(postId)
-        ? { ...item, post: { ...item.post, liked: true, like_count: item.post.like_count + 1 } }
+        ? {
+            ...item,
+            post: { ...item.post, liked: true, like_count: item.post.like_count + 1 },
+          }
         : item,
     );
     set({ itemsByMode: updated });
@@ -138,7 +146,10 @@ export const useFeedStore = create<FeedState>((set, get) => ({
     } catch (error) {
       set((state) => ({
         itemsByMode: previousItems,
-        errorByMode: { ...state.errorByMode, [state.currentMode]: 'Unable to like post.' },
+        errorByMode: {
+          ...state.errorByMode,
+          [state.currentMode]: 'Unable to like post.',
+        },
       }));
       throw error;
     }
@@ -188,7 +199,10 @@ export const useFeedStore = create<FeedState>((set, get) => ({
       set((state) => ({
         itemsByMode: updateItemsAcrossModes(state.itemsByMode, (item) =>
           item.type === 'post' && String(item.post.id) === String(postId)
-            ? { ...item, post: { ...item.post, comment_count: item.post.comment_count + 1 } }
+            ? {
+                ...item,
+                post: { ...item.post, comment_count: item.post.comment_count + 1 },
+              }
             : item,
         ),
       }));

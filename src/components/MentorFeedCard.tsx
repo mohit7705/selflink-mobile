@@ -1,10 +1,11 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { memo, useCallback } from 'react';
 import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import type { MentorInsightCard } from '@schemas/feed';
 import { theme } from '@theme';
+
 import { useEntranceAnimation, usePressScaleAnimation } from '../styles/animations';
 
 type Props = {
@@ -43,7 +44,11 @@ function MentorFeedCardComponent({ data }: Props) {
             </View>
             <Text style={styles.title}>{data.title}</Text>
             {data.subtitle ? <Text style={styles.subtitle}>{data.subtitle}</Text> : null}
-            <TouchableOpacity style={styles.ctaButton} onPress={handlePress} activeOpacity={0.9}>
+            <TouchableOpacity
+              style={styles.ctaButton}
+              onPress={handlePress}
+              activeOpacity={0.9}
+            >
               <Text style={styles.ctaText}>{data.cta ?? 'Open mentor'}</Text>
             </TouchableOpacity>
           </View>

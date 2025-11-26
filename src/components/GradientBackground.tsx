@@ -1,7 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { ReactNode } from 'react';
 import { StyleSheet, ViewStyle } from 'react-native';
-
 import type { ColorValue } from 'react-native';
 
 type Props = {

@@ -3,8 +3,8 @@ import React from 'react';
 
 jest.mock('react-native-markdown-display', () => 'Markdown');
 
-import { FeedScreen } from '@screens/feed/FeedScreen';
 import type { FeedItem } from '@schemas/feed';
+import { FeedScreen } from '@screens/feed/FeedScreen';
 
 let mockState: any;
 const mockLoadFeed = jest.fn().mockResolvedValue(undefined);

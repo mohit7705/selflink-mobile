@@ -1,12 +1,13 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { memo, useCallback } from 'react';
 import { Animated, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import type { SoulMatchFeedCard as SoulMatchFeedCardData } from '@schemas/feed';
 import { theme } from '@theme';
-import { useEntranceAnimation, usePressScaleAnimation } from '../styles/animations';
+
 import { UserAvatar } from './UserAvatar';
+import { useEntranceAnimation, usePressScaleAnimation } from '../styles/animations';
 
 type Props = {
   data: SoulMatchFeedCardData;
@@ -68,7 +69,9 @@ function SoulMatchFeedCardComponent({ data }: Props) {
                         {label}
                       </Text>
                       {profile.score !== undefined && profile.score !== null ? (
-                        <Text style={styles.profileScore}>{Math.round(profile.score)}%</Text>
+                        <Text style={styles.profileScore}>
+                          {Math.round(profile.score)}%
+                        </Text>
                       ) : null}
                     </View>
                   );
@@ -82,7 +85,11 @@ function SoulMatchFeedCardComponent({ data }: Props) {
               </View>
             )}
 
-            <TouchableOpacity style={styles.ctaButton} onPress={handlePress} activeOpacity={0.9}>
+            <TouchableOpacity
+              style={styles.ctaButton}
+              onPress={handlePress}
+              activeOpacity={0.9}
+            >
               <Text style={styles.ctaText}>{data.cta ?? 'View matches'}</Text>
             </TouchableOpacity>
           </View>

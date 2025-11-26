@@ -1,7 +1,14 @@
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  Animated,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 import { MetalButton } from '@components/MetalButton';
 import { MetalPanel } from '@components/MetalPanel';
@@ -13,8 +20,8 @@ import { useToast } from '@context/ToastContext';
 import { SoulMatchStackParamList } from '@navigation/types';
 import { SoulmatchResult } from '@schemas/soulmatch';
 import { fetchSoulmatchMentor, fetchSoulmatchWith } from '@services/api/soulmatch';
-import { buildBadges, formatScore, scoreTone } from '@utils/soulmatch';
 import { theme } from '@theme/index';
+import { buildBadges, formatScore, scoreTone } from '@utils/soulmatch';
 
 type Route = RouteProp<SoulMatchStackParamList, 'SoulMatchDetail'>;
 type Nav = NativeStackNavigationProp<SoulMatchStackParamList>;
@@ -24,7 +31,10 @@ type Props = {
   skipAutoLoad?: boolean;
 };
 
-export function SoulMatchDetailsScreen({ prefetchedData = null, skipAutoLoad = false }: Props) {
+export function SoulMatchDetailsScreen({
+  prefetchedData = null,
+  skipAutoLoad = false,
+}: Props) {
   const navigation = useNavigation<Nav>();
   const route = useRoute<Route>();
   const { userId, displayName } = route.params;
@@ -153,7 +163,10 @@ export function SoulMatchDetailsScreen({ prefetchedData = null, skipAutoLoad = f
         <MetalPanel glow style={styles.heroPanel}>
           <View style={styles.heroScoreRow}>
             <Text style={styles.scoreValue}>{formatScore(data.score)}</Text>
-            <BadgePill label={tone === 'positive' ? 'High vibe' : 'Aligned'} tone={tone} />
+            <BadgePill
+              label={tone === 'positive' ? 'High vibe' : 'Aligned'}
+              tone={tone}
+            />
           </View>
           <View style={styles.heroBar}>
             <CompatibilityBar value={data.score} />

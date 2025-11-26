@@ -14,10 +14,7 @@ const badgeFromComponents = (components: SoulmatchComponents | undefined) => {
   if ((components?.lifestyle ?? 0) >= 80) {
     badges.push('Aligned habits');
   }
-  if (
-    badges.length === 0 &&
-    (components?.astro ?? 0) + (components?.matrix ?? 0) > 140
-  ) {
+  if (badges.length === 0 && (components?.astro ?? 0) + (components?.matrix ?? 0) > 140) {
     badges.push('Balanced duo');
   }
   return badges;
@@ -33,7 +30,11 @@ export const buildBadges = (result: SoulmatchResult, limit = 3): string[] => {
 export const formatScore = (score: number) => `${Math.round(score)}%`;
 
 export const scoreTone = (score: number) => {
-  if (score >= 80) return 'positive';
-  if (score >= 60) return 'default';
+  if (score >= 80) {
+    return 'positive';
+  }
+  if (score >= 60) {
+    return 'default';
+  }
   return 'warning';
 };
