@@ -39,6 +39,7 @@ export interface Message {
   body: string;
   type: string;
   meta: Record<string, unknown> | null;
+  attachments?: MessageAttachment[];
   status?: MessageStatus;
   client_uuid?: string | null;
   delivered_at?: string | null;
@@ -52,7 +53,7 @@ export interface SendMessagePayload {
   type?: string;
   meta?: Record<string, unknown> | null;
   client_uuid?: string;
-  attachments?: MessageAttachment[];
+  attachments?: PendingAttachment[];
 }
 
 export type MessageStatus =
@@ -64,10 +65,23 @@ export type MessageStatus =
   | 'failed';
 
 export type MessageAttachment = {
+  id: string;
   url: string;
-  type?: string;
-  name?: string;
+  type: MessageAttachmentType;
+  mimeType: string;
   width?: number | null;
   height?: number | null;
   duration?: number | null;
+};
+
+export type MessageAttachmentType = 'image' | 'video';
+
+export type PendingAttachment = {
+  uri: string;
+  type: MessageAttachmentType;
+  mime: string;
+  width?: number;
+  height?: number;
+  duration?: number;
+  name?: string;
 };

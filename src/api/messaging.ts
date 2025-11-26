@@ -4,6 +4,7 @@ import type {
   CreateThreadPayload,
   Message,
   MessageAttachment,
+  PendingAttachment,
   MessageStatus,
   Thread,
 } from '@schemas/messaging';
@@ -38,6 +39,43 @@ type ThreadResponse = Omit<Thread, 'id'> & {
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
+
+const normalizeAttachments = (
+  approx?: MessageResponse['attachments'],
+  precise?: MessageResponse['attachments'],
+): Message['attachments'] => {
+  const candidates = precise ?? approx;
+  if (!Array.isArray(candidates)) {
+    return undefined;
+  }
+  return candidates
+    .map((item, index) => {
+      if (!item) {
+        return null;
+      }
+      const resolved = precise?.[index] ?? item;
+      const id = resolved?.id ?? item.id ?? index;
+      const mime = (resolved as any)?.mimeType ?? (resolved as any)?.mime_type;
+      const duration =
+        (resolved as any)?.duration ?? (resolved as any)?.duration_seconds ?? null;
+      return {
+        id: id != null ? String(id) : String(index),
+        url: (resolved as any)?.url ?? (resolved as any)?.file ?? (item as any)?.url,
+        type: ((resolved as any)?.type ?? (item as any)?.type ?? 'image') as
+          | 'image'
+          | 'video',
+        mimeType: typeof mime === 'string' ? mime : '',
+        width:
+          (resolved as any)?.width ?? (resolved as any)?.image_width ?? (item as any)?.width,
+        height:
+          (resolved as any)?.height ??
+          (resolved as any)?.image_height ??
+          (item as any)?.height,
+        duration: typeof duration === 'number' ? duration : null,
+      };
+    })
+    .filter((attachment) => Boolean(attachment?.url)) as MessageAttachment[];
+};
 
 const toKey = (value: unknown) => {
   if (value === null || value === undefined) {
@@ -188,6 +226,7 @@ const normalizeMessage = (
     id: resolvedId != null ? String(resolvedId) : String(approx.id),
     thread: resolvedThread != null ? String(resolvedThread) : String(approx.thread),
     sender: sender ?? merged.sender ?? approx.sender,
+    attachments: normalizeAttachments(approx.attachments, precise?.attachments),
   };
 };
 
@@ -260,7 +299,14 @@ type SendMessageOptions = {
   clientUuid?: string;
   type?: string;
   meta?: Record<string, unknown> | null;
-  attachments?: MessageAttachment[];
+  attachments?: PendingAttachment[];
+};
+
+export type SendMessageParams = {
+  threadId: string;
+  text: string;
+  clientUuid?: string;
+  attachments?: PendingAttachment[];
 };
 
 export async function sendMessageWithMeta(
@@ -281,6 +327,49 @@ export async function sendMessageWithMeta(
     },
   });
   return normalizeMessage(parsed, precise);
+}
+
+export async function sendMessageWithAttachments(
+  params: SendMessageParams,
+): Promise<Message> {
+  const { threadId, text, clientUuid, attachments } = params;
+  if (!attachments || attachments.length === 0) {
+    return sendMessageWithMeta(threadId, text, { clientUuid });
+  }
+  const form = new FormData();
+  const trimmed = text.trim();
+  if (trimmed) {
+    form.append('body', trimmed);
+  }
+  form.append('client_uuid', clientUuid ?? '');
+  attachments.forEach((attachment, index) => {
+    const name =
+      attachment.name ??
+      `attachment-${index + 1}.${attachment.mime?.split('/')?.[1] ?? 'bin'}`;
+    form.append(
+      'attachments',
+      {
+        uri: attachment.uri,
+        name,
+        type: attachment.mime,
+      } as any,
+    );
+  });
+
+  const response = await apiClient.request<string>({
+    method: 'POST',
+    url: `/threads/${resolveThreadId(threadId)}/messages/`,
+    data: form,
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+    transformResponse: [(data) => data],
+    responseType: 'text',
+  });
+  const raw = typeof response.data === 'string' ? response.data : '';
+  const parsed = raw ? JSON.parse(raw) : null;
+  const precise = raw ? parseJsonPreservingLargeInts<MessageResponse>(raw) : parsed;
+  return normalizeMessage(parsed as MessageResponse, precise as MessageResponse | undefined);
 }
 
 export async function ackMessage(

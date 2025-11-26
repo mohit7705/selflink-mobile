@@ -18,6 +18,8 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Image,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -28,7 +30,7 @@ import {
 import { ChatBubble } from '@components/messaging/ChatBubble';
 import TypingIndicator from '@components/messaging/TypingIndicator';
 import { navigateToUserProfile } from '@navigation/helpers';
-import type { Message, MessageStatus } from '@schemas/messaging';
+import type { Message, MessageStatus, PendingAttachment } from '@schemas/messaging';
 import {
   getTypingStatus,
   sendTypingSignal,
@@ -41,6 +43,8 @@ import {
   type ThreadTypingStatus,
 } from '@store/messagingStore';
 import { theme } from '@theme';
+import { useMultiImagePicker } from '@hooks/useMultiImagePicker';
+import { useVideoPicker, type PickedVideo } from '@hooks/useVideoPicker';
 
 interface RouteParams {
   threadId: string;
@@ -87,6 +91,7 @@ export function ChatScreen() {
   const threadId = route.params.threadId;
   const otherUserId = route.params.otherUserId;
   const [input, setInput] = useState('');
+  const [selectedVideo, setSelectedVideo] = useState<PickedVideo | null>(null);
   const [isSending, setIsSending] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const loadThreadMessages = useMessagingStore((state) => state.loadThreadMessages);
@@ -97,6 +102,15 @@ export function ChatScreen() {
   const removeMessage = useMessagingStore((state) => state.removeMessage);
   const setTypingStatus = useMessagingStore((state) => state.setTypingStatus);
   const retryPendingMessage = useMessagingStore((state) => state.retryPendingMessage);
+  const {
+    images: selectedImages,
+    pickImages,
+    removeImage,
+    clearImages,
+    canAddMore: canAddMoreImages,
+    isPicking: isPickingImages,
+  } = useMultiImagePicker();
+  const { pickVideo, isPicking: isPickingVideo } = useVideoPicker();
   const threadKey = useMemo(() => String(threadId), [threadId]);
   const messages = useMessagingStore(
     useCallback(
@@ -124,6 +138,33 @@ export function ChatScreen() {
       return timeA - timeB;
     });
   }, [messages]);
+
+  const pendingAttachments: PendingAttachment[] = useMemo(() => {
+    const next: PendingAttachment[] = [];
+    if (selectedVideo) {
+      next.push({
+        uri: selectedVideo.uri,
+        type: 'video',
+        mime: selectedVideo.type ?? 'video/mp4',
+        width: selectedVideo.width ?? undefined,
+        height: selectedVideo.height ?? undefined,
+        duration: selectedVideo.duration ?? undefined,
+        name: selectedVideo.name,
+      });
+      return next;
+    }
+    if (selectedImages.length) {
+      next.push(
+        ...selectedImages.map((img) => ({
+          uri: img.uri,
+          type: 'image' as const,
+          mime: img.type ?? 'image/jpeg',
+          name: img.name,
+        })),
+      );
+    }
+    return next;
+  }, [selectedImages, selectedVideo]);
 
   useEffect(() => {
     loadThreadMessages(threadId).catch(() => undefined);
@@ -211,6 +252,36 @@ export function ChatScreen() {
     [notifyTyping, scheduleTypingStop],
   );
 
+  const handlePickImages = useCallback(async () => {
+    if (selectedVideo) {
+      Alert.alert('Remove video first', 'You can attach photos or a video, not both.');
+      return;
+    }
+    await pickImages();
+  }, [pickImages, selectedVideo]);
+
+  const handlePickVideo = useCallback(async () => {
+    if (selectedImages.length > 0) {
+      Alert.alert('Photos already attached', 'Remove photos before attaching a video.');
+      return;
+    }
+    const video = await pickVideo();
+    if (video) {
+      setSelectedVideo(video);
+    }
+  }, [pickVideo, selectedImages.length]);
+
+  const handleRemoveAttachment = useCallback(
+    (attachment: PendingAttachment) => {
+      if (attachment.type === 'video') {
+        setSelectedVideo(null);
+        return;
+      }
+      removeImage(attachment.uri);
+    },
+    [removeImage],
+  );
+
   useEffect(() => {
     let cancelled = false;
     getTypingStatus(threadId)
@@ -242,20 +313,23 @@ export function ChatScreen() {
   }, [notifyTyping]);
 
   const handleSend = useCallback(async () => {
-    if (!input.trim() || isSending) {
+    const trimmed = input.trim();
+    if ((trimmed.length === 0 && pendingAttachments.length === 0) || isSending) {
       return;
     }
     setIsSending(true);
     try {
-      const payload = input.trim();
       if (__DEV__) {
         console.log('[ChatScreen] sendMessage', {
           threadId,
-          preview: payload.slice(0, 32),
+          preview: trimmed.slice(0, 32),
+          attachments: pendingAttachments.length,
         });
       }
-      await sendMessage(threadId, payload);
+      await sendMessage(threadId, trimmed, pendingAttachments);
       setInput('');
+      setSelectedVideo(null);
+      clearImages();
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
         typingTimeoutRef.current = null;
@@ -274,7 +348,15 @@ export function ChatScreen() {
     } finally {
       setIsSending(false);
     }
-  }, [input, isSending, notifyTyping, sendMessage, threadId]);
+  }, [
+    clearImages,
+    input,
+    isSending,
+    notifyTyping,
+    pendingAttachments,
+    sendMessage,
+    threadId,
+  ]);
 
   const typingIndicatorVisible =
     Boolean(typingStatus?.typing) &&
@@ -386,12 +468,73 @@ export function ChatScreen() {
         keyboardShouldPersistTaps="handled"
         ListFooterComponent={<View style={styles.listFooter} />}
       />
+      {pendingAttachments.length ? (
+        <ScrollView
+          horizontal
+          style={styles.attachmentsPreview}
+          contentContainerStyle={styles.attachmentsPreviewContent}
+          showsHorizontalScrollIndicator={false}
+        >
+          {pendingAttachments.map((attachment) => (
+            <View key={`${attachment.uri}-${attachment.type}`} style={styles.attachmentChip}>
+              {attachment.type === 'image' ? (
+                <Image source={{ uri: attachment.uri }} style={styles.attachmentThumb} />
+              ) : (
+                <View style={styles.attachmentVideo}>
+                  <Ionicons name="videocam" size={18} color="#0f172a" />
+                  <Text style={styles.attachmentLabel}>Video</Text>
+                </View>
+              )}
+              <TouchableOpacity
+                onPress={() => handleRemoveAttachment(attachment)}
+                style={styles.removeAttachmentButton}
+              >
+                <Ionicons name="close" size={14} color="#fff" />
+              </TouchableOpacity>
+            </View>
+          ))}
+        </ScrollView>
+      ) : null}
       {typingIndicatorVisible ? (
         <View style={styles.typingWrapper}>
           <TypingIndicator />
         </View>
       ) : null}
       <View style={styles.inputBar}>
+        <View style={styles.attachmentButtons}>
+          <TouchableOpacity
+            onPress={handlePickImages}
+            disabled={!canAddMoreImages || Boolean(selectedVideo) || isPickingImages || isSending}
+            style={styles.attachmentButton}
+          >
+            <Ionicons
+              name="image-outline"
+              size={20}
+              color={
+                !canAddMoreImages || selectedVideo || isPickingImages || isSending
+                  ? '#9CA3AF'
+                  : '#0f766e'
+              }
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handlePickVideo}
+            disabled={
+              Boolean(selectedVideo) || selectedImages.length > 0 || isPickingVideo || isSending
+            }
+            style={styles.attachmentButton}
+          >
+            <Ionicons
+              name="videocam-outline"
+              size={20}
+              color={
+                selectedVideo || selectedImages.length > 0 || isPickingVideo || isSending
+                  ? '#9CA3AF'
+                  : '#0f766e'
+              }
+            />
+          </TouchableOpacity>
+        </View>
         <TextInput
           style={styles.input}
           placeholder="Message..."
@@ -413,12 +556,16 @@ export function ChatScreen() {
         <TouchableOpacity
           onPress={handleSend}
           style={styles.sendButton}
-          disabled={isSending || !input.trim()}
+          disabled={isSending || (input.trim().length === 0 && pendingAttachments.length === 0)}
         >
           <Ionicons
             name="send"
             size={20}
-            color={isSending || !input.trim() ? '#9CA3AF' : '#0f766e'}
+            color={
+              isSending || (input.trim().length === 0 && pendingAttachments.length === 0)
+                ? '#9CA3AF'
+                : '#0f766e'
+            }
           />
         </TouchableOpacity>
       </View>
@@ -460,6 +607,14 @@ const styles = StyleSheet.create({
     borderTopColor: '#E5E7EB',
     backgroundColor: '#FFFFFF',
   },
+  attachmentButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingRight: 6,
+  },
+  attachmentButton: {
+    padding: 6,
+  },
   input: {
     flex: 1,
     maxHeight: 120,
@@ -475,5 +630,47 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     padding: 10,
     borderRadius: 999,
+  },
+  attachmentsPreview: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#FFFFFF',
+  },
+  attachmentsPreviewContent: {
+    alignItems: 'center',
+  },
+  attachmentChip: {
+    position: 'relative',
+    marginRight: 8,
+  },
+  attachmentThumb: {
+    width: 64,
+    height: 64,
+    borderRadius: 12,
+    backgroundColor: '#e5e7eb',
+  },
+  attachmentVideo: {
+    width: 96,
+    height: 64,
+    borderRadius: 12,
+    backgroundColor: '#e5e7eb',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    paddingHorizontal: 8,
+  },
+  attachmentLabel: {
+    marginLeft: 6,
+    color: '#111827',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  removeAttachmentButton: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    backgroundColor: '#EF4444',
+    borderRadius: 999,
+    padding: 4,
   },
 });

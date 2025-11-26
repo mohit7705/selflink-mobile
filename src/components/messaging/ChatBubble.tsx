@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { memo } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import type { Message } from '@schemas/messaging';
 
@@ -35,6 +35,36 @@ const ChatBubbleComponent: React.FC<Props> = ({
     minute: '2-digit',
   });
 
+  const renderAttachments = () => {
+    const attachments = Array.isArray(message.attachments) ? message.attachments : [];
+    if (!attachments.length) {
+      return null;
+    }
+    const images = attachments.filter((att) => att.type === 'image' && att.url);
+    const videos = attachments.filter((att) => att.type === 'video' && att.url);
+    return (
+      <View style={styles.attachmentsContainer}>
+        {images.length ? (
+          <View style={styles.imageGrid}>
+            {images.map((att) => (
+              <Image
+                key={att.id ?? att.url}
+                source={{ uri: att.url }}
+                style={styles.imageThumb}
+              />
+            ))}
+          </View>
+        ) : null}
+        {videos.map((att) => (
+          <View key={att.id ?? att.url} style={styles.videoChip}>
+            <Ionicons name="videocam" size={14} color="#0f172a" />
+            <Text style={styles.videoLabel}>Video</Text>
+          </View>
+        ))}
+      </View>
+    );
+  };
+
   const renderStatusIcon = () => {
     if (!status) {
       return null;
@@ -67,7 +97,10 @@ const ChatBubbleComponent: React.FC<Props> = ({
 
   const content = (
     <View style={styles.bubbleContent}>
-      <Text style={isOwn ? styles.textOwn : styles.textOther}>{message.body}</Text>
+      {renderAttachments()}
+      {message.body ? (
+        <Text style={isOwn ? styles.textOwn : styles.textOther}>{message.body}</Text>
+      ) : null}
       <View style={styles.metaRow}>
         {showTimestamp ? <Text style={styles.timestamp}>{time}</Text> : null}
         {isOwn ? renderStatusIcon() : null}
@@ -187,6 +220,36 @@ const styles = StyleSheet.create({
   },
   retryWrapper: {
     marginLeft: 4,
+  },
+  attachmentsContainer: {
+    marginBottom: 6,
+  },
+  imageGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  imageThumb: {
+    width: 140,
+    height: 140,
+    borderRadius: 12,
+    backgroundColor: '#e5e7eb',
+    marginRight: 6,
+    marginBottom: 6,
+  },
+  videoChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: '#e5e7eb',
+    alignSelf: 'flex-start',
+  },
+  videoLabel: {
+    marginLeft: 6,
+    color: '#0f172a',
+    fontWeight: '600',
+    fontSize: 12,
   },
 });
 

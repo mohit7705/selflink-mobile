@@ -2,7 +2,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 
 import * as messagingApi from '@api/messaging';
-import type { Message, MessageAttachment, MessageStatus, Thread } from '@schemas/messaging';
+import type {
+  Message,
+  MessageAttachment,
+  MessageStatus,
+  PendingAttachment,
+  Thread,
+} from '@schemas/messaging';
 
 export type ThreadTypingStatus = {
   typing: boolean;
@@ -17,7 +23,7 @@ type PendingMessage = {
   clientUuid: string;
   threadId: string;
   body: string;
-  attachments?: MessageAttachment[];
+  attachments?: PendingAttachment[];
   createdAt: string;
   attempts: number;
   nextAttemptAt?: number;
@@ -42,6 +48,32 @@ const sortMessagesChronologically = (messages: Message[]) =>
 
 const deriveMessageKey = (message: Message) =>
   String(message.client_uuid ?? message.id);
+
+const attachmentsEqual = (
+  a?: MessageAttachment[] | null,
+  b?: MessageAttachment[] | null,
+): boolean => {
+  const aList = Array.isArray(a) ? a : [];
+  const bList = Array.isArray(b) ? b : [];
+  if (aList.length !== bList.length) {
+    return false;
+  }
+  for (let i = 0; i < aList.length; i += 1) {
+    const aItem = aList[i];
+    const bItem = bList[i];
+    if (
+      aItem?.url !== bItem?.url ||
+      aItem?.type !== bItem?.type ||
+      aItem?.mimeType !== bItem?.mimeType ||
+      aItem?.width !== bItem?.width ||
+      aItem?.height !== bItem?.height ||
+      aItem?.duration !== bItem?.duration
+    ) {
+      return false;
+    }
+  }
+  return true;
+};
 
 const mergeMessagesChronologically = (
   existing: Message[] | undefined,
@@ -78,7 +110,8 @@ const mergeMessagesChronologically = (
       current.delivered_at !== message.delivered_at ||
       current.read_at !== message.read_at ||
       current.meta !== message.meta ||
-      current.type !== message.type
+      current.type !== message.type ||
+      !attachmentsEqual(current.attachments, message.attachments)
     ) {
       changed = true;
       map.set(key, message);
@@ -302,6 +335,17 @@ const loadPendingQueue = async (): Promise<PendingMessage[]> => {
       ...item,
       attempts: item.attempts ?? 0,
       status: item.status ?? 'queued',
+      attachments: Array.isArray(item.attachments)
+        ? (item.attachments as PendingAttachment[]).map((attachment) => ({
+            uri: (attachment as any).uri ?? (attachment as any).url ?? '',
+            type: (attachment as any).type ?? 'image',
+            mime: (attachment as any).mime ?? (attachment as any).mimeType ?? 'application/octet-stream',
+            width: (attachment as any).width,
+            height: (attachment as any).height,
+            duration: (attachment as any).duration,
+            name: (attachment as any).name,
+          }))
+        : undefined,
     }));
   } catch (error) {
     console.warn('messagingStore: failed to load pending queue', error);
@@ -316,7 +360,7 @@ export type MessagingState = typeof initialState & {
   mergeThread: (thread: Thread) => void;
   loadThreadMessages: (threadId: string) => Promise<void>;
   setMessagesForThread: (threadId: string, messages: Message[]) => void;
-  sendMessage: (threadId: string, text: string) => Promise<void>;
+  sendMessage: (threadId: string, text: string, attachments?: PendingAttachment[]) => Promise<void>;
   appendMessage: (threadId: string, message: Message) => void;
   removeMessage: (threadId: string, messageId: string) => Promise<void>;
   removeThread: (threadId: string) => Promise<void>;
@@ -562,9 +606,11 @@ export const useMessagingStore = create<MessagingState>((set, get) => {
       set({ messagesByThread });
     }
   },
-  async sendMessage(threadId, text) {
+  async sendMessage(threadId, text, attachments) {
     const body = text.trim();
-    if (!body) {
+    const hasBody = Boolean(body);
+    const hasAttachments = Array.isArray(attachments) && attachments.length > 0;
+    if (!hasBody && !hasAttachments) {
       return;
     }
     const clientUuid = generateClientUuid();
@@ -574,12 +620,23 @@ export const useMessagingStore = create<MessagingState>((set, get) => {
       id: clientUuid,
       thread: threadKey,
       sender: { id: get().sessionUserId ?? 'me' } as unknown as Message['sender'],
-      body,
+      body: hasBody ? body : '',
       type: 'text',
       meta: null,
       status: get().transportOnline ? 'pending' : 'queued',
       client_uuid: clientUuid,
       created_at: createdAt,
+      attachments: Array.isArray(attachments)
+        ? attachments.map((attachment, index) => ({
+            id: `${clientUuid}-${index}`,
+            url: attachment.uri,
+            type: attachment.type,
+            mimeType: attachment.mime,
+            width: attachment.width ?? null,
+            height: attachment.height ?? null,
+            duration: attachment.duration ?? null,
+          }))
+        : undefined,
     };
 
     get().appendMessage(threadId, optimistic);
@@ -587,7 +644,8 @@ export const useMessagingStore = create<MessagingState>((set, get) => {
     const queueCandidate: PendingMessage = {
       clientUuid,
       threadId: threadKey,
-      body,
+      body: hasBody ? body : '',
+      attachments: hasAttachments ? attachments : undefined,
       createdAt,
       attempts: 0,
       status: 'queued',
@@ -616,9 +674,16 @@ export const useMessagingStore = create<MessagingState>((set, get) => {
     }
 
     try {
-      const message = await messagingApi.sendMessageWithMeta(threadId, body, {
-        clientUuid,
-      });
+      const message = hasAttachments
+        ? await messagingApi.sendMessageWithAttachments({
+            threadId,
+            text: body,
+            clientUuid,
+            attachments: attachments ?? [],
+          })
+        : await messagingApi.sendMessageWithMeta(threadId, body, {
+            clientUuid,
+          });
       const normalized =
         message.client_uuid || message.status || message.id === clientUuid
           ? message
@@ -966,14 +1031,21 @@ export const useMessagingStore = create<MessagingState>((set, get) => {
           client_uuid: pending.clientUuid,
         });
         try {
-          const message = await messagingApi.sendMessageWithMeta(
-            pending.threadId,
-            pending.body,
-            {
-              clientUuid: pending.clientUuid,
-              attachments: pending.attachments,
-            },
-          );
+          const message =
+            pending.attachments && pending.attachments.length > 0
+              ? await messagingApi.sendMessageWithAttachments({
+                  threadId: pending.threadId,
+                  text: pending.body,
+                  clientUuid: pending.clientUuid,
+                  attachments: pending.attachments,
+                })
+              : await messagingApi.sendMessageWithMeta(
+                  pending.threadId,
+                  pending.body,
+                  {
+                    clientUuid: pending.clientUuid,
+                  },
+                );
           get().appendMessage(message.thread, {
             ...message,
             status: message.status ?? 'sent',
