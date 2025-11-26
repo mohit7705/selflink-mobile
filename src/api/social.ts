@@ -97,7 +97,7 @@ const normalizeVideo = (value: any): PostVideo | null => {
     null;
   const thumbnailUrl =
     typeof thumbCandidate === 'string' && thumbCandidate.length > 0
-      ? resolveBackendUrl(thumbCandidate) ?? thumbCandidate
+      ? (resolveBackendUrl(thumbCandidate) ?? thumbCandidate)
       : null;
   const duration =
     typeof (value as any).duration === 'number'
@@ -105,10 +105,8 @@ const normalizeVideo = (value: any): PostVideo | null => {
       : typeof (value as any).duration_seconds === 'number'
         ? (value as any).duration_seconds
         : null;
-  const width =
-    typeof (value as any).width === 'number' ? (value as any).width : null;
-  const height =
-    typeof (value as any).height === 'number' ? (value as any).height : null;
+  const width = typeof (value as any).width === 'number' ? (value as any).width : null;
+  const height = typeof (value as any).height === 'number' ? (value as any).height : null;
   const mimeType =
     typeof (value as any).mime === 'string'
       ? (value as any).mime

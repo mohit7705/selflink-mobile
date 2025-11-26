@@ -54,21 +54,21 @@ jest.mock('expo-linear-gradient', () => {
   };
 });
 
-jest.mock('expo-av', () => {
+jest.mock('expo-video', () => {
   const React = require('react');
   const { View } = require('react-native');
-  const mockCommands = {
-    playAsync: jest.fn(async () => undefined),
-    pauseAsync: jest.fn(async () => undefined),
-    stopAsync: jest.fn(async () => undefined),
+  const mockPlayer = {
+    play: jest.fn(),
+    pause: jest.fn(),
+    addListener: jest.fn(() => ({ remove: jest.fn() })),
+    loop: true,
+    muted: true,
   };
-  const Video = React.forwardRef((props: any, ref: any) => {
-    React.useImperativeHandle(ref, () => mockCommands);
-    return React.createElement(View, props, props.children);
-  });
   return {
-    Video,
-    ResizeMode: { COVER: 'cover', CONTAIN: 'contain' },
+    VideoView: React.forwardRef((props: any, ref: any) =>
+      React.createElement(View, { ...props, ref }, props.children),
+    ),
+    useVideoPlayer: () => mockPlayer,
   };
 });
 

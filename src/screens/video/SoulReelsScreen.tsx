@@ -23,7 +23,9 @@ export function SoulReelsScreen() {
   const navigation = useNavigation<any>();
   const currentMode = useVideoFeedStore((state) => state.currentMode);
   const items = useVideoFeedStore((state) => state.itemsByMode[state.currentMode]);
-  const isLoading = useVideoFeedStore((state) => state.isLoadingByMode[state.currentMode]);
+  const isLoading = useVideoFeedStore(
+    (state) => state.isLoadingByMode[state.currentMode],
+  );
   const isPaging = useVideoFeedStore((state) => state.isPagingByMode[state.currentMode]);
   const error = useVideoFeedStore((state) => state.errorByMode[state.currentMode]);
   const fetchFirstPage = useVideoFeedStore((state) => state.fetchFirstPage);
@@ -96,17 +98,14 @@ export function SoulReelsScreen() {
               style={[styles.modeButton, currentMode === mode && styles.modeButtonActive]}
             >
               <Text
-                style={[
-                  styles.modeLabel,
-                  currentMode === mode && styles.modeLabelActive,
-                ]}
+                style={[styles.modeLabel, currentMode === mode && styles.modeLabelActive]}
               >
                 {mode === 'for_you' ? 'For You' : 'Following'}
               </Text>
             </TouchableOpacity>
           ))}
         </View>
-        <View style={{ width: 48 }} />
+        <View style={styles.rightPlaceholder} />
       </View>
       <FlatList
         data={items}
@@ -231,5 +230,8 @@ const styles = StyleSheet.create({
   retry: {
     color: '#0B1120',
     fontWeight: '700',
+  },
+  rightPlaceholder: {
+    width: 48,
   },
 });

@@ -5,8 +5,6 @@ import type { VideoFeedItem, VideoFeedMode } from '@schemas/videoFeed';
 
 type Nullable<T> = T | null;
 
-const MODES: VideoFeedMode[] = ['for_you', 'following'];
-
 const emptyByMode = <T>(value: T): Record<VideoFeedMode, T> => ({
   for_you: value,
   following: value,
@@ -95,9 +93,7 @@ export const useVideoFeedStore = create<VideoFeedState>((set, get) => ({
         errorByMode: {
           ...state.errorByMode,
           [mode]:
-            error instanceof Error
-              ? error.message
-              : 'Unable to load more video posts.',
+            error instanceof Error ? error.message : 'Unable to load more video posts.',
         },
       }));
     } finally {

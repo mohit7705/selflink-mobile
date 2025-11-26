@@ -195,12 +195,18 @@ export function FeedScreen() {
           (token) =>
             token.isViewable &&
             token.item?.type === 'post' &&
-            Boolean(token.item?.post?.video?.url),
+            Boolean((token.item as any)?.post?.video?.url),
         )
-        .map((token) => ({
-          id: token.item?.post?.id ? String(token.item.post.id) : null,
-          index: token.index ?? 0,
-        }))
+        .map((token) => {
+          if (token.item?.type !== 'post') {
+            return { id: null, index: token.index ?? 0 };
+          }
+          const postId = token.item.post.id;
+          return {
+            id: postId ? String(postId) : null,
+            index: token.index ?? 0,
+          };
+        })
         .filter((item) => item.id !== null);
 
       if (!visibleVideos.length) {

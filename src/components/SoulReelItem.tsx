@@ -24,7 +24,11 @@ function SoulReelItemComponent({ post, isActive, onLike, onComment, onShare }: P
       <View style={styles.overlay}>
         <View style={styles.caption}>
           <Text style={styles.author}>{post.author?.name ?? 'SelfLink user'}</Text>
-          {post.text ? <Text style={styles.text} numberOfLines={2}>{post.text}</Text> : null}
+          {post.text ? (
+            <Text style={styles.text} numberOfLines={2}>
+              {post.text}
+            </Text>
+          ) : null}
         </View>
         <View style={styles.actions}>
           <Pressable

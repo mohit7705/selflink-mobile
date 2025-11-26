@@ -12,7 +12,6 @@ import { NatalChartScreen } from '@screens/astro/NatalChartScreen';
 import { CreatePostScreen } from '@screens/feed/CreatePostScreen';
 import { FeedScreen } from '@screens/feed/FeedScreen';
 import { PostDetailsScreen } from '@screens/feed/PostDetailsScreen';
-import { SoulReelsScreen } from '@screens/video/SoulReelsScreen';
 import { DailyMentorEntryScreen } from '@screens/mentor/DailyMentorEntryScreen';
 import { DailyMentorScreen } from '@screens/mentor/DailyMentorScreen';
 import { MentorChatScreen } from '@screens/mentor/MentorChatScreen';
@@ -29,6 +28,7 @@ import { SoulMatchDetailsScreen } from '@screens/soulmatch/SoulMatchDetailsScree
 import { SoulMatchMentorScreen } from '@screens/soulmatch/SoulMatchMentorScreen';
 import { SoulMatchRecommendationsScreen } from '@screens/soulmatch/SoulMatchRecommendationsScreen';
 import { SoulMatchScreen } from '@screens/SoulMatchScreen';
+import { SoulReelsScreen } from '@screens/video/SoulReelsScreen';
 import { WalletLedgerScreen } from '@screens/WalletLedgerScreen';
 import { useMessagingStore } from '@store/messagingStore';
 

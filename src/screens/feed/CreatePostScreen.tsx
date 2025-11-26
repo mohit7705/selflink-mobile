@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { isAxiosError } from 'axios';
 import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -14,7 +15,6 @@ import {
   View,
 } from 'react-native';
 
-import { isAxiosError } from 'axios';
 import { createPost } from '@api/social';
 import { MarkdownText } from '@components/markdown/MarkdownText';
 import { useImagePicker, type PickedImage } from '@hooks/useImagePicker';
@@ -28,10 +28,10 @@ export function CreatePostScreen() {
   const [selectedImages, setSelectedImages] = useState<PickedImage[]>([]);
   const [selectedVideo, setSelectedVideo] = useState<PickedVideo | null>(null);
   const { pickImage, isPicking } = useImagePicker({ allowsEditing: true, quality: 0.9 });
-  const {
-    pickVideo,
-    isPicking: isPickingVideo,
-  } = useVideoPicker({ allowsEditing: false, quality: 0.8 });
+  const { pickVideo, isPicking: isPickingVideo } = useVideoPicker({
+    allowsEditing: false,
+    quality: 0.8,
+  });
   const markAllDirty = useFeedStore((state) => state.markAllDirty);
 
   const hasImages = selectedImages.length > 0;
@@ -92,10 +92,6 @@ export function CreatePostScreen() {
     }
   }, [isPickingVideo, isSubmitting, pickVideo, selectedImages.length]);
 
-  const handleRemoveImage = useCallback(() => {
-    setSelectedImages([]);
-  }, []);
-
   const handleRemoveVideo = useCallback(() => {
     setSelectedVideo(null);
   }, []);
@@ -128,20 +124,17 @@ export function CreatePostScreen() {
 
   const handleSubmit = useCallback(async () => {
     const trimmed = content.trim();
-    const hasImages = selectedImages.length > 0;
+    const hasImageSelection = selectedImages.length > 0;
     const hasVideo = Boolean(selectedVideo);
-    if (hasImages && hasVideo) {
+    if (hasImageSelection && hasVideo) {
       Alert.alert(
         'Choose photos or a video',
         'You can attach either up to 4 photos OR one video per post.',
       );
       return;
     }
-    if (!trimmed && !hasImages && !hasVideo) {
-      Alert.alert(
-        'Content required',
-        'Write something or attach media before posting.',
-      );
+    if (!trimmed && !hasImageSelection && !hasVideo) {
+      Alert.alert('Content required', 'Write something or attach media before posting.');
       return;
     }
     setIsSubmitting(true);
@@ -229,7 +222,7 @@ export function CreatePostScreen() {
         <View style={styles.videoPreviewContainer}>
           <View style={styles.videoPreview}>
             <Ionicons name="videocam" size={28} color="#22C55E" />
-            <View style={{ flex: 1 }}>
+            <View style={styles.flexGrow}>
               <Text style={styles.videoTitle}>Video selected</Text>
               <Text style={styles.videoMeta}>
                 {selectedDurationLabel ?? 'Ready to upload'}
@@ -262,7 +255,9 @@ export function CreatePostScreen() {
               <Pressable
                 style={styles.removeButton}
                 onPress={() =>
-                  setSelectedImages((prev) => prev.filter((item) => item.uri !== image.uri))
+                  setSelectedImages((prev) =>
+                    prev.filter((item) => item.uri !== image.uri),
+                  )
                 }
                 accessibilityRole="button"
                 accessibilityLabel="Remove selected photo"
@@ -408,6 +403,9 @@ const styles = StyleSheet.create({
     color: '#22C55E',
     fontWeight: '700',
     letterSpacing: 0.4,
+  },
+  flexGrow: {
+    flex: 1,
   },
   submitButton: {
     borderRadius: 12,

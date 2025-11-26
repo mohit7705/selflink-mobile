@@ -1,24 +1,7 @@
-import { apiClient } from './client';
-import { normalizePost } from './social';
-
 import type { VideoFeedItem, VideoFeedResponse } from '@schemas/videoFeed';
 
-type QueryParams = Record<string, string | number | undefined>;
-
-const buildQuery = (path: string, params?: QueryParams) => {
-  if (!params) {
-    return path;
-  }
-  const search = new URLSearchParams();
-  Object.entries(params).forEach(([key, value]) => {
-    if (value === undefined || value === null) {
-      return;
-    }
-    search.append(key, String(value));
-  });
-  const query = search.toString();
-  return query ? `${path}?${query}` : path;
-};
+import { apiClient } from './client';
+import { normalizePost } from './social';
 
 const asIdentifier = (value: unknown): string | null => {
   if (typeof value === 'string' && value.length > 0) {
@@ -64,7 +47,9 @@ const normalizeResponse = (data: any): VideoFeedResponse => ({
       : null,
 });
 
-export async function getForYouVideoFeed(next?: string | null): Promise<VideoFeedResponse> {
+export async function getForYouVideoFeed(
+  next?: string | null,
+): Promise<VideoFeedResponse> {
   const path = next ?? '/feed/for_you_videos/';
   const { data } = await apiClient.get(path);
   return normalizeResponse(data);

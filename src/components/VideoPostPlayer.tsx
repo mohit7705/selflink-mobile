@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { AVPlaybackStatus, AVPlaybackStatusSuccess, ResizeMode, Video } from 'expo-av';
-import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { VideoView, type VideoPlayerStatus, useVideoPlayer } from 'expo-video';
+import { memo, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { PostVideo } from '@schemas/social';
@@ -22,14 +22,16 @@ const formatDuration = (seconds?: number | null): string | null => {
 };
 
 function VideoPostPlayerComponent({ source, isActive = false, mode = 'inline' }: Props) {
-  const videoRef = useRef<Video>(null);
-  const [status, setStatus] = useState<AVPlaybackStatus | null>(null);
   const [isMuted, setIsMuted] = useState(true);
   const [userPaused, setUserPaused] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [status, setStatus] = useState<VideoPlayerStatus>('loading');
 
-  const loadedStatus = status && status.isLoaded ? (status as AVPlaybackStatusSuccess) : null;
-  const isPlaying = loadedStatus?.isPlaying ?? false;
-  const isBuffering = loadedStatus?.isBuffering ?? false;
+  const player = useVideoPlayer(source.url, (instance) => {
+    instance.loop = true;
+    instance.muted = true;
+  });
+
   const shouldPlay = isActive && !userPaused;
 
   const aspectRatio = useMemo(() => {
@@ -43,40 +45,43 @@ function VideoPostPlayerComponent({ source, isActive = false, mode = 'inline' }:
   }, [mode, source.height, source.width]);
 
   useEffect(() => {
-    const player = videoRef.current;
-    if (!player) {
-      return;
-    }
-    if (shouldPlay) {
-      player.playAsync().catch(() => undefined);
-    } else {
-      player.pauseAsync().catch(() => undefined);
-    }
-  }, [shouldPlay]);
+    const playSub = player.addListener?.('playingChange', ({ isPlaying: playing }: any) =>
+      setIsPlaying(playing),
+    );
+    const statusSub = player.addListener?.('statusChange', ({ status: next }: any) =>
+      setStatus(next),
+    );
+    return () => {
+      playSub?.remove?.();
+      statusSub?.remove?.();
+    };
+  }, [player]);
 
-  useEffect(
-    () => () => {
-      videoRef.current?.stopAsync().catch(() => undefined);
-    },
-    [],
-  );
+  useEffect(() => {
+    player.muted = isMuted;
+  }, [isMuted, player]);
+
+  useEffect(() => {
+    if (shouldPlay) {
+      player.play();
+    } else {
+      player.pause();
+    }
+  }, [player, shouldPlay]);
 
   const handleTogglePlayback = () => {
-    if (!loadedStatus) {
-      return;
-    }
     if (isPlaying) {
       setUserPaused(true);
-      videoRef.current?.pauseAsync().catch(() => undefined);
+      player.pause();
     } else {
       setUserPaused(false);
-      videoRef.current?.playAsync().catch(() => undefined);
+      player.play();
     }
   };
 
   const handleToggleMute = () => setIsMuted((prev) => !prev);
 
-  const durationLabel = formatDuration(source.duration ?? loadedStatus?.durationMillis / 1000);
+  const durationLabel = formatDuration(source.duration ?? null);
 
   if (!source?.url) {
     return null;
@@ -88,22 +93,15 @@ function VideoPostPlayerComponent({ source, isActive = false, mode = 'inline' }:
       testID="video-post-player"
     >
       <Pressable onPress={handleTogglePlayback}>
-        <Video
-          ref={videoRef}
-          source={{ uri: source.url }}
-          resizeMode={ResizeMode.COVER}
-          shouldPlay={shouldPlay}
-          isMuted={isMuted}
-          isLooping
-          onPlaybackStatusUpdate={(nextStatus) => setStatus(nextStatus)}
-          posterSource={
-            source.thumbnailUrl ? { uri: source.thumbnailUrl } : undefined
-          }
-          usePoster={Boolean(source.thumbnailUrl)}
+        <VideoView
+          player={player}
+          contentFit="cover"
+          allowsPictureInPicture={false}
+          nativeControls={false}
           style={[
             styles.video,
             mode === 'reel' ? styles.videoReel : null,
-            aspectRatio ? { aspectRatio } : { width: '100%', height: '100%' },
+            aspectRatio ? { aspectRatio } : styles.fullSize,
           ]}
         />
         <View style={styles.overlay}>
@@ -130,7 +128,7 @@ function VideoPostPlayerComponent({ source, isActive = false, mode = 'inline' }:
               <Ionicons name="play" size={32} color="#E2E8F0" />
             </View>
           ) : null}
-          {isBuffering ? (
+          {status === 'loading' ? (
             <View style={styles.buffering}>
               <ActivityIndicator color="#E2E8F0" />
             </View>
@@ -165,6 +163,10 @@ const styles = StyleSheet.create({
     width: '100%',
     minHeight: 260,
     backgroundColor: '#0B1120',
+  },
+  fullSize: {
+    width: '100%',
+    height: '100%',
   },
   videoReel: {
     minHeight: undefined,
