@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useIsFocused } from '@react-navigation/native';
 import { VideoView, type VideoPlayerStatus, useVideoPlayer } from 'expo-video';
-import { memo, useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { PostVideo } from '@schemas/social';
@@ -59,32 +59,52 @@ function VideoPostPlayerComponent({ source, shouldPlay = false, mode = 'inline' 
     };
   }, [player]);
 
+  const safePause = useCallback(() => {
+    try {
+      player.pause();
+    } catch (error) {
+      if (__DEV__) {
+        console.warn('VideoPostPlayer: pause ignored', error);
+      }
+    }
+  }, [player]);
+
+  const safePlay = useCallback(() => {
+    try {
+      player.play();
+    } catch (error) {
+      if (__DEV__) {
+        console.warn('VideoPostPlayer: play ignored', error);
+      }
+    }
+  }, [player]);
+
   useEffect(() => {
     player.muted = isMuted;
   }, [isMuted, player]);
 
   useEffect(() => {
     if (shouldBePlaying) {
-      player.play();
+      safePlay();
     } else {
-      player.pause();
+      safePause();
     }
-  }, [player, shouldBePlaying]);
+  }, [player, safePause, safePlay, shouldBePlaying]);
 
   useEffect(() => {
     return () => {
       // Ensure playback stops when the component unmounts or leaves the viewport.
-      player.pause();
+      safePause();
     };
-  }, [player]);
+  }, [player, safePause]);
 
   const handleTogglePlayback = () => {
     if (isPlaying) {
       setUserPaused(true);
-      player.pause();
+      safePause();
     } else {
       setUserPaused(false);
-      player.play();
+      safePlay();
     }
   };
 
