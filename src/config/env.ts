@@ -6,8 +6,12 @@ const DEFAULT_BACKEND = 'http://192.168.0.104:8000/';
 
 const backendUrl =
   typeof extra.backendUrl === 'string' ? extra.backendUrl : DEFAULT_BACKEND;
+const healthEndpointRaw =
+  typeof extra.healthEndpoint === 'string' ? extra.healthEndpoint : undefined;
 const healthEndpoint =
-  typeof extra.healthEndpoint === 'string' ? extra.healthEndpoint : '/api/health/';
+  typeof healthEndpointRaw === 'string' && healthEndpointRaw.trim().length > 0
+    ? healthEndpointRaw
+    : 'health/';
 const resolveRealtimeUrl = () => {
   if (typeof extra.realtimeUrl === 'string') {
     return extra.realtimeUrl;
