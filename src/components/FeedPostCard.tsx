@@ -1,6 +1,6 @@
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { memo, useCallback, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Animated,
@@ -13,6 +13,7 @@ import {
 
 import { followUser, unfollowUser } from '@api/users';
 import { PostContent } from '@components/PostContent';
+import { usePulseAnimation } from '@hooks/usePulseAnimation';
 import type { Post } from '@schemas/social';
 import { useAuthStore } from '@store/authStore';
 import { useFeedStore } from '@store/feedStore';
@@ -37,6 +38,7 @@ function FeedPostCardComponent({ post, shouldPlayVideo = false, isFeedFocused }:
   const entrance = useEntranceAnimation();
   const pressAnim = usePressScaleAnimation(0.985);
   const heartScale = useRef(new Animated.Value(0)).current;
+  const [pulseKey, setPulseKey] = useState(0);
   const [followPending, setFollowPending] = useState(false);
   const [likePending, setLikePending] = useState(false);
   const [isFollowing, setIsFollowing] = useState(() => {
@@ -60,6 +62,7 @@ function FeedPostCardComponent({ post, shouldPlayVideo = false, isFeedFocused }:
         await unlikePost(post.id);
       } else {
         await likePost(post.id);
+        setPulseKey((k) => k + 1);
       }
     } catch (error) {
       console.warn('FeedPostCard: like toggle failed', error);
@@ -90,6 +93,13 @@ function FeedPostCardComponent({ post, shouldPlayVideo = false, isFeedFocused }:
   }, [currentUserId, isFollowing, post.author.id, followPending]);
 
   const lastTap = useRef(0);
+  const previousLikedRef = useRef(post.liked);
+  useEffect(() => {
+    if (!previousLikedRef.current && post.liked) {
+      setPulseKey((k) => k + 1);
+    }
+    previousLikedRef.current = post.liked;
+  }, [post.liked]);
 
   const triggerHeart = useCallback(() => {
     heartScale.setValue(0);
@@ -193,9 +203,11 @@ function FeedPostCardComponent({ post, shouldPlayVideo = false, isFeedFocused }:
                   likePending && styles.likeDisabled,
                 ]}
               >
-                <Text style={styles.actionText}>
-                  {post.liked ? 'Unlike' : 'Like'} • {post.like_count}
-                </Text>
+                <Animated.View style={usePulseAnimation(pulseKey).animatedStyle}>
+                  <Text style={styles.actionText}>
+                    {post.liked ? 'Unlike' : 'Like'} • {post.like_count}
+                  </Text>
+                </Animated.View>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={handleOpenDetails}
