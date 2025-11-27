@@ -98,7 +98,7 @@ function VideoPostPlayerComponent({
   useEffect(
     () => () => {
       isMounted.current = false;
-      void stopAndUnload();
+      stopAndUnload().catch(() => undefined);
     },
     [stopAndUnload],
   );
@@ -125,7 +125,7 @@ function VideoPostPlayerComponent({
     if (!screenFocused) {
       setManualPlay(false);
       setUserPaused(false);
-      void stopAndUnload();
+      stopAndUnload().catch(() => undefined);
       return;
     }
   }, [screenFocused, stopAndUnload]);
@@ -137,7 +137,7 @@ function VideoPostPlayerComponent({
     if (shouldBePlaying) {
       safePlay();
     } else {
-      void stopAndUnload();
+      stopAndUnload().catch(() => undefined);
       setManualPlay(false);
     }
   }, [screenFocused, shouldBePlaying, safePlay, stopAndUnload]);
