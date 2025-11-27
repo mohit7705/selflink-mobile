@@ -41,6 +41,7 @@ function VideoPostPlayerComponent({
   mutedDefault,
   onMuteChange,
 }: Props) {
+  const AUTOPLAY_ENABLED = true;
   const safeIsFocused = useSafeIsFocused();
   const screenFocused = isScreenFocused ?? safeIsFocused;
   const isMounted = useRef(true);
@@ -57,7 +58,10 @@ function VideoPostPlayerComponent({
 
   const effectiveMuted = mutedDefault ?? internalMuted;
   const shouldBePlaying =
-    screenFocused && ((shouldAutoplay && !userPaused) || manualPlay) && !userPaused;
+    AUTOPLAY_ENABLED &&
+    screenFocused &&
+    ((shouldAutoplay && !userPaused) || manualPlay) &&
+    !userPaused;
 
   const aspectRatio = useMemo(() => {
     if (mode === 'reel') {
@@ -87,6 +91,7 @@ function VideoPostPlayerComponent({
       isMounted.current = false;
       try {
         player.pause();
+        player.unload();
       } catch {
         // ignore
       }
@@ -116,18 +121,32 @@ function VideoPostPlayerComponent({
     if (!screenFocused) {
       setManualPlay(false);
       setUserPaused(false);
-      safePause();
+      try {
+        player.pause();
+        player.unload();
+      } catch {
+        // ignore
+      }
+      return;
     }
-  }, [screenFocused, safePause]);
+  }, [player, screenFocused]);
 
   useEffect(() => {
+    if (!screenFocused) {
+      return;
+    }
     if (shouldBePlaying) {
       safePlay();
     } else {
-      safePause();
+      try {
+        player.pause();
+        player.unload();
+      } catch {
+        // ignore
+      }
       setManualPlay(false);
     }
-  }, [player, safePause, safePlay, shouldBePlaying]);
+  }, [player, screenFocused, shouldBePlaying, safePlay]);
 
   const handleTogglePlayback = () => {
     if (isPlaying) {
