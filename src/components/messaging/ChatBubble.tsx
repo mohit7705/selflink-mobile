@@ -3,7 +3,8 @@ import React, { memo } from 'react';
 import { Animated, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { useBubbleAnimation } from '@hooks/useBubbleAnimation';
-import type { Message } from '@schemas/messaging';
+import { useReactionPulse } from '@hooks/useReactionPulse';
+import type { Message, MessageReactionSummary } from '@schemas/messaging';
 import { theme } from '@theme';
 
 type Props = {
@@ -30,7 +31,7 @@ const ChatBubbleComponent: React.FC<Props> = ({
   onRetry,
 }) => {
   const radius = getRadius(isOwn, isFirstInGroup, isLastInGroup);
-  const { animatedStyle } = useBubbleAnimation(isOwn);
+  const { animatedStyle: bubbleAnimatedStyle } = useBubbleAnimation(isOwn);
 
   const time = new Date(message.created_at).toLocaleTimeString([], {
     hour: '2-digit',
@@ -104,16 +105,7 @@ const ChatBubbleComponent: React.FC<Props> = ({
         ]}
       >
         {message.reactions.map((reaction) => (
-          <View
-            key={reaction.emoji}
-            style={[
-              styles.reactionChip,
-              reaction.reactedByCurrentUser ? styles.reactionChipActive : null,
-            ]}
-          >
-            <Text style={styles.reactionText}>{reaction.emoji}</Text>
-            <Text style={styles.reactionCount}>{reaction.count}</Text>
-          </View>
+          <ReactionChip key={reaction.emoji} reaction={reaction} />
         ))}
       </View>
     );
@@ -190,7 +182,7 @@ const ChatBubbleComponent: React.FC<Props> = ({
       style={[
         styles.container,
         isOwn ? styles.containerRight : styles.containerLeft,
-        animatedStyle,
+        bubbleAnimatedStyle,
       ]}
     >
       <TouchableOpacity
@@ -211,6 +203,30 @@ const ChatBubbleComponent: React.FC<Props> = ({
     </Animated.View>
   );
 };
+
+const ReactionChip = memo(function ReactionChip({
+  reaction,
+}: {
+  reaction: MessageReactionSummary;
+}) {
+  const triggerKey = `${reaction.emoji}:${reaction.count}:${
+    reaction.reactedByCurrentUser ? 'me' : 'other'
+  }`;
+  const { animatedStyle } = useReactionPulse(triggerKey);
+  return (
+    <View
+      style={[
+        styles.reactionChip,
+        reaction.reactedByCurrentUser ? styles.reactionChipActive : null,
+      ]}
+    >
+      <Animated.View style={animatedStyle}>
+        <Text style={styles.reactionText}>{reaction.emoji}</Text>
+      </Animated.View>
+      <Text style={styles.reactionCount}>{reaction.count}</Text>
+    </View>
+  );
+});
 
 const getRadius = (isOwn: boolean, isFirst: boolean, isLast: boolean) => {
   const base = {
