@@ -10,6 +10,8 @@ import type {
   MessageReactionSummary,
   MessageReplyPreview,
 } from '@schemas/messaging';
+import { env } from '@config/env';
+import { buildUrl } from '@utils/url';
 import { parseJsonPreservingLargeInts } from '@utils/json';
 
 import { apiClient } from './client';
@@ -81,12 +83,21 @@ const normalizeAttachments = (
       const mime = (resolved as any)?.mimeType ?? (resolved as any)?.mime_type;
       const duration =
         (resolved as any)?.duration ?? (resolved as any)?.duration_seconds ?? null;
+      const rawUrl = (resolved as any)?.url ?? (resolved as any)?.file ?? (item as any)?.url;
+      const resolvedUrl = rawUrl ? buildUrl(env.backendUrl, rawUrl) : null;
+      const rawType = (resolved as any)?.type ?? (item as any)?.type ?? '';
+      const typeFromMime =
+        typeof mime === 'string' && mime.startsWith('video')
+          ? 'video'
+          : typeof mime === 'string' && mime.startsWith('image')
+            ? 'image'
+            : undefined;
+      const normalizedType =
+        rawType === 'video' || rawType === 'image' ? rawType : typeFromMime ?? 'image';
       return {
         id: id != null ? String(id) : String(index),
-        url: (resolved as any)?.url ?? (resolved as any)?.file ?? (item as any)?.url,
-        type: ((resolved as any)?.type ?? (item as any)?.type ?? 'image') as
-          | 'image'
-          | 'video',
+        url: resolvedUrl ?? '',
+        type: normalizedType as 'image' | 'video',
         mimeType: typeof mime === 'string' ? mime : '',
         width:
           (resolved as any)?.width ??
