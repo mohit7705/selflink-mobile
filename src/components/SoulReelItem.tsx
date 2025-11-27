@@ -43,9 +43,9 @@ function SoulReelItemComponent({
       {post.video ? (
         <VideoPostPlayer
           source={post.video}
-          shouldPlay={isActive}
+          shouldAutoplay={isActive}
           mode="reel"
-          muted={muted}
+          mutedDefault={muted}
         />
       ) : null}
 

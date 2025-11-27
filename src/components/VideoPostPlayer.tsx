@@ -8,9 +8,10 @@ import type { PostVideo } from '@schemas/social';
 
 type Props = {
   source: PostVideo;
-  shouldPlay?: boolean;
+  shouldAutoplay?: boolean;
+  isScreenFocused?: boolean;
   mode?: 'inline' | 'reel';
-  muted?: boolean;
+  mutedDefault?: boolean;
   onMuteChange?: (muted: boolean) => void;
 };
 
@@ -34,15 +35,17 @@ const formatDuration = (seconds?: number | null): string | null => {
 
 function VideoPostPlayerComponent({
   source,
-  shouldPlay = false,
+  shouldAutoplay = false,
+  isScreenFocused,
   mode = 'inline',
-  muted,
+  mutedDefault,
   onMuteChange,
 }: Props) {
-  const isScreenFocused = useSafeIsFocused();
+  const screenFocused = isScreenFocused ?? useSafeIsFocused();
   const isMounted = useRef(true);
-  const [internalMuted, setInternalMuted] = useState(true);
+  const [internalMuted, setInternalMuted] = useState(mutedDefault ?? true);
   const [userPaused, setUserPaused] = useState(false);
+  const [manualPlay, setManualPlay] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [status, setStatus] = useState<VideoPlayerStatus>('loading');
 
@@ -51,8 +54,9 @@ function VideoPostPlayerComponent({
     instance.muted = true;
   });
 
-  const effectiveMuted = muted ?? internalMuted;
-  const shouldBePlaying = isScreenFocused && shouldPlay && !userPaused;
+  const effectiveMuted = mutedDefault ?? internalMuted;
+  const shouldBePlaying =
+    screenFocused && ((shouldAutoplay && !userPaused) || manualPlay) && !userPaused;
 
   const aspectRatio = useMemo(() => {
     if (mode === 'reel') {
@@ -80,8 +84,13 @@ function VideoPostPlayerComponent({
   useEffect(
     () => () => {
       isMounted.current = false;
+      try {
+        player.pause();
+      } catch {
+        // ignore
+      }
     },
-    [],
+    [player],
   );
 
   const safePause = useCallback(() => {
@@ -103,10 +112,19 @@ function VideoPostPlayerComponent({
   }, [effectiveMuted, player]);
 
   useEffect(() => {
+    if (!screenFocused) {
+      setManualPlay(false);
+      setUserPaused(false);
+      safePause();
+    }
+  }, [screenFocused, safePause]);
+
+  useEffect(() => {
     if (shouldBePlaying) {
       safePlay();
     } else {
       safePause();
+      setManualPlay(false);
     }
   }, [player, safePause, safePlay, shouldBePlaying]);
 
@@ -116,6 +134,7 @@ function VideoPostPlayerComponent({
       safePause();
     } else {
       setUserPaused(false);
+      setManualPlay(true);
       safePlay();
     }
   };

@@ -181,7 +181,8 @@ export function PostDetailsScreen() {
               text={post?.text}
               media={post?.media}
               video={post?.video}
-              shouldPlayVideo
+              shouldAutoplay={false}
+              isScreenFocused={false}
               legacySources={[
                 post?.images,
                 post?.image_urls,

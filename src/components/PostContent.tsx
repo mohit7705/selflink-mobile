@@ -13,7 +13,8 @@ type Props = {
   media?: MediaAsset[] | null;
   legacySources?: unknown[];
   video?: PostVideo | null;
-  shouldPlayVideo?: boolean;
+  shouldAutoplay?: boolean;
+  isScreenFocused?: boolean;
 };
 
 function PostContentComponent({
@@ -21,7 +22,8 @@ function PostContentComponent({
   media,
   legacySources = [],
   video,
-  shouldPlayVideo,
+  shouldAutoplay,
+  isScreenFocused,
 }: Props) {
   const hasVideo = Boolean(video?.url);
   const attachments = useMemo(
@@ -42,7 +44,8 @@ function PostContentComponent({
       {hasVideo ? (
         <VideoPostPlayer
           source={video as PostVideo}
-          shouldPlay={Boolean(shouldPlayVideo)}
+          shouldAutoplay={Boolean(shouldAutoplay)}
+          isScreenFocused={isScreenFocused}
         />
       ) : (
         <AttachmentGallery attachments={attachments} />

@@ -126,6 +126,7 @@ export function FeedScreen() {
                 Boolean(item.post.video?.url) &&
                 String(item.post.id) === String(activeVideoPostId ?? '')
               }
+              isFeedFocused={isFocused}
             />
           );
         case 'mentor_insight':

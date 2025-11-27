@@ -24,11 +24,12 @@ import { useEntranceAnimation, usePressScaleAnimation } from '../styles/animatio
 interface Props {
   post: Post;
   shouldPlayVideo?: boolean;
+  isFeedFocused?: boolean;
 }
 
 const AnimatedPressable = Animated.createAnimatedComponent(RNPressable);
 
-function FeedPostCardComponent({ post, shouldPlayVideo = false }: Props) {
+function FeedPostCardComponent({ post, shouldPlayVideo = false, isFeedFocused }: Props) {
   const navigation = useNavigation<any>();
   const currentUserId = useAuthStore((state) => state.currentUser?.id);
   const likePost = useFeedStore((state) => state.likePost);
@@ -165,7 +166,8 @@ function FeedPostCardComponent({ post, shouldPlayVideo = false }: Props) {
                   text={post.text}
                   media={post.media}
                   video={post.video}
-                  shouldPlayVideo={shouldPlayVideo}
+                  shouldAutoplay={shouldPlayVideo}
+                  isScreenFocused={isFeedFocused}
                   legacySources={[
                     post.images,
                     post.image_urls,
