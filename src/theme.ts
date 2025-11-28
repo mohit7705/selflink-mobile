@@ -172,6 +172,17 @@ export const theme = {
     verticalRhythm: 12,
     cosmicPadding: 18,
   },
+  feed: {
+    backgroundStart: '#020617',
+    backgroundEnd: '#020617',
+    glass: 'rgba(15,23,42,0.88)',
+    border: 'rgba(59,130,246,0.35)',
+    glow: 'rgba(59,130,246,0.18)',
+    textPrimary: '#E5E7EB',
+    textMuted: 'rgba(226,232,240,0.65)',
+    accentBlue: '#3B82F6',
+    accentCyan: '#22D3EE',
+  },
 };
 
 export type Theme = typeof theme;

@@ -110,7 +110,6 @@ const createTabBarIcon =
     return <Ionicons name={iconName} size={size} color={color as ColorValue} />;
   };
 
-const FeedHeader = () => <TopBar title="Feed" rightLabel="Search" />;
 const MessagesHeader = () => <TopBar title="Messages" />;
 
 function FeedStackNavigator() {
@@ -119,9 +118,7 @@ function FeedStackNavigator() {
       <FeedStack.Screen
         name="FeedHome"
         component={FeedScreen}
-        options={{
-          header: FeedHeader,
-        }}
+        options={{ headerShown: false }}
       />
       <FeedStack.Screen
         name="PostDetails"

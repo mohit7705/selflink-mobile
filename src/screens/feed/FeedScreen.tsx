@@ -1,13 +1,8 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useIsFocused, useNavigation } from '@react-navigation/native';
+import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   FlatList,
@@ -18,6 +13,7 @@ import {
   ViewToken,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FeedPostCard } from '@components/FeedPostCard';
 import { MatrixFeedCard } from '@components/MatrixFeedCard';
@@ -30,7 +26,10 @@ import type { FeedItem, FeedMode } from '@schemas/feed';
 import { useFeedStore } from '@store/feedStore';
 import { theme } from '@theme';
 
+type FeedTab = FeedMode | 'reels';
+
 export function FeedScreen() {
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const isFocused = useIsFocused();
   const currentMode = useFeedStore((state) => state.currentMode);
@@ -45,7 +44,10 @@ export function FeedScreen() {
   const setMode = useFeedStore((state) => state.setMode);
   const listRef = useRef<FlatList<FeedItem>>(null);
   const scrollOffsets = useRef<Record<FeedMode, number>>({ for_you: 0, following: 0 });
-  const indicator = useRef(new Animated.Value(currentMode === 'for_you' ? 0 : 1)).current;
+  const [activeTab, setActiveTab] = useState<FeedTab>(currentMode);
+  const activeTabRef = useRef<FeedTab>(currentMode);
+  const tabIndex = useMemo(() => ({ for_you: 0, following: 1, reels: 2 }), []);
+  const indicator = useRef(new Animated.Value(tabIndex[currentMode])).current;
   const [segmentWidth, setSegmentWidth] = useState(0);
   const showFab = useMemo(() => items.some((item) => item.type === 'post'), [items]);
   const [activeVideoPostId, setActiveVideoPostId] = useState<string | null>(null);
@@ -74,15 +76,29 @@ export function FeedScreen() {
 
   useEffect(() => {
     Animated.timing(indicator, {
-      toValue: currentMode === 'for_you' ? 0 : 1,
-      duration: 220,
+      toValue: tabIndex[activeTab],
+      duration: 200,
       useNativeDriver: true,
     }).start();
+  }, [activeTab, indicator, tabIndex]);
+
+  useEffect(() => {
+    activeTabRef.current = activeTab;
+  }, [activeTab]);
+
+  useEffect(() => {
     const offset = scrollOffsets.current[currentMode] ?? 0;
     requestAnimationFrame(() => {
       listRef.current?.scrollToOffset({ offset, animated: false });
     });
-  }, [currentMode, indicator]);
+  }, [currentMode]);
+
+  useEffect(() => {
+    if (activeTabRef.current === 'reels') {
+      return;
+    }
+    setActiveTab(currentMode);
+  }, [currentMode]);
 
   useEffect(() => {
     if (!isFocused) {
@@ -90,29 +106,40 @@ export function FeedScreen() {
     }
   }, [isFocused]);
 
-  const headerAction = useCallback(() => {
-    return (
-      <TouchableOpacity onPress={() => navigation.navigate('SearchProfiles')}>
-        <Text style={styles.headerAction}>Search</Text>
-      </TouchableOpacity>
-    );
-  }, [navigation]);
-
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      headerRight: headerAction,
-    });
-  }, [headerAction, navigation]);
-
   const handleModeChange = useCallback(
     (mode: FeedMode) => {
       if (mode === currentMode) {
         return;
       }
+      setActiveTab(mode);
       setMode(mode);
+      Haptics.selectionAsync().catch(() => undefined);
     },
     [currentMode, setMode],
   );
+
+  const handleReelsPress = useCallback(() => {
+    setActiveTab('reels');
+    Haptics.selectionAsync().catch(() => undefined);
+    navigation.navigate('SoulReels');
+  }, [navigation]);
+
+  useEffect(() => {
+    if (isFocused && activeTab === 'reels') {
+      setActiveTab(currentMode);
+    }
+  }, [activeTab, currentMode, isFocused]);
+
+  const activeHighlight = useMemo(() => {
+    switch (activeTab) {
+      case 'following':
+        return [theme.palette.graphite, theme.feed.textPrimary] as const;
+      case 'reels':
+        return [theme.feed.accentCyan, theme.colors.secondary] as const;
+      default:
+        return [theme.feed.accentBlue, theme.feed.accentCyan] as const;
+    }
+  }, [activeTab]);
 
   const renderItem = useCallback(
     ({ item }: { item: FeedItem }) => {
@@ -238,86 +265,143 @@ export function FeedScreen() {
     [isFocused],
   );
 
+  const tabs = useMemo(
+    () => [
+      {
+        key: 'for_you' as FeedTab,
+        label: 'For You',
+        onPress: () => handleModeChange('for_you'),
+      },
+      {
+        key: 'following' as FeedTab,
+        label: 'Following',
+        onPress: () => handleModeChange('following'),
+      },
+      { key: 'reels' as FeedTab, label: 'Reels', onPress: handleReelsPress },
+    ],
+    [handleModeChange, handleReelsPress],
+  );
+
   return (
-    <LinearGradient colors={theme.gradients.appBackground} style={styles.container}>
-      <View
-        style={styles.modeSwitch}
-        onLayout={(event) => setSegmentWidth(event.nativeEvent.layout.width / 2)}
-      >
-        <View style={styles.modeTrack} pointerEvents="none">
-          <Animated.View
-            style={[
-              styles.modeIndicator,
-              {
-                width: segmentWidth || '50%',
-                transform: [
+    <LinearGradient
+      colors={[theme.feed.backgroundStart, theme.feed.backgroundEnd]}
+      style={styles.container}
+    >
+      <LinearGradient
+        colors={['rgba(59,130,246,0.22)', 'transparent']}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+        style={styles.halo}
+        pointerEvents="none"
+      />
+      <View style={styles.content}>
+        <View style={[styles.headerArea, { paddingTop: insets.top + 6 }]}>
+          <View style={styles.headerRow}>
+            <Text style={styles.headerTitle}>Feed</Text>
+            <TouchableOpacity
+              style={styles.searchButton}
+              onPress={() => navigation.navigate('SearchProfiles')}
+              activeOpacity={0.9}
+            >
+              <Ionicons name="search" size={18} style={styles.searchIcon} />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.modeSwitch}>
+            <View
+              style={styles.modeTrack}
+              pointerEvents="none"
+              onLayout={(event) => setSegmentWidth(event.nativeEvent.layout.width / 3)}
+            >
+              <Animated.View
+                style={[
+                  styles.modeIndicator,
                   {
-                    translateX: indicator.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [0, segmentWidth || 0],
-                    }),
+                    width: segmentWidth || '33.33%',
+                    transform: [
+                      {
+                        translateX: indicator.interpolate({
+                          inputRange: [0, 1, 2],
+                          outputRange: [0, segmentWidth || 0, (segmentWidth || 0) * 2],
+                        }),
+                      },
+                    ],
                   },
-                ],
-              },
-            ]}
+                ]}
+              >
+                <LinearGradient
+                  colors={activeHighlight}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.modeIndicatorGradient}
+                />
+              </Animated.View>
+            </View>
+            <View style={styles.modeRow}>
+              {tabs.map(({ key, label, onPress }) => {
+                const active = activeTab === key;
+                return (
+                  <TouchableOpacity
+                    key={key}
+                    style={styles.modeButton}
+                    onPress={onPress}
+                    activeOpacity={0.9}
+                  >
+                    <Text style={[styles.modeLabel, active && styles.modeLabelActive]}>
+                      {label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+          <LinearGradient
+            colors={['transparent', theme.feed.border, 'transparent']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.dividerGlow}
           />
         </View>
-        {(['for_you', 'following'] as FeedMode[]).map((mode) => {
-          const active = mode === currentMode;
-          return (
-            <TouchableOpacity
-              key={mode}
-              style={[styles.modeButton, active && styles.modeButtonActive]}
-              onPress={() => handleModeChange(mode)}
-              activeOpacity={0.85}
-            >
-              <Text style={[styles.modeLabel, active && styles.modeLabelActive]}>
-                {mode === 'for_you' ? 'For You' : 'Following'}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-        <TouchableOpacity
-          style={styles.reelsButton}
-          onPress={() => navigation.navigate('SoulReels')}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.reelsLabel}>Reels</Text>
-        </TouchableOpacity>
+
+        {showInitialSkeleton ? (
+          renderSkeletons()
+        ) : errorContent ? (
+          errorContent
+        ) : (
+          <FlatList
+            ref={listRef}
+            data={items}
+            keyExtractor={(item) => `${item.type}-${item.id}`}
+            renderItem={renderItem}
+            contentContainerStyle={[
+              styles.listContent,
+              showFab && styles.listContentWithFab,
+            ]}
+            ItemSeparatorComponent={renderSeparator}
+            refreshControl={
+              <RefreshControl
+                refreshing={isLoading && items.length > 0}
+                onRefresh={loadFeed}
+                tintColor={theme.feed.accentBlue}
+                colors={[theme.feed.accentBlue, theme.feed.accentCyan]}
+                progressBackgroundColor="rgba(34,211,238,0.08)"
+              />
+            }
+            onEndReached={loadMore}
+            onEndReachedThreshold={0.4}
+            ListEmptyComponent={renderEmpty}
+            ListFooterComponent={renderFooter}
+            onScroll={(event) => {
+              scrollOffsets.current[currentMode] = event.nativeEvent.contentOffset.y;
+            }}
+            scrollEventThrottle={16}
+            onViewableItemsChanged={onViewableItemsChanged}
+            viewabilityConfig={viewabilityConfig.current}
+            extraData={videoExtraData}
+            showsVerticalScrollIndicator={false}
+          />
+        )}
       </View>
-      {showInitialSkeleton ? (
-        renderSkeletons()
-      ) : errorContent ? (
-        errorContent
-      ) : (
-        <FlatList
-          ref={listRef}
-          data={items}
-          keyExtractor={(item) => `${item.type}-${item.id}`}
-          renderItem={renderItem}
-          contentContainerStyle={styles.listContent}
-          ItemSeparatorComponent={renderSeparator}
-          refreshControl={
-            <RefreshControl
-              refreshing={isLoading && items.length > 0}
-              onRefresh={loadFeed}
-              tintColor="#9B4EFF"
-              colors={['#9B4EFF', '#0EA5E9']}
-            />
-          }
-          onEndReached={loadMore}
-          onEndReachedThreshold={0.4}
-          ListEmptyComponent={renderEmpty}
-          ListFooterComponent={renderFooter}
-          onScroll={(event) => {
-            scrollOffsets.current[currentMode] = event.nativeEvent.contentOffset.y;
-          }}
-          scrollEventThrottle={16}
-          onViewableItemsChanged={onViewableItemsChanged}
-          viewabilityConfig={viewabilityConfig.current}
-          extraData={videoExtraData}
-        />
-      )}
       {showFab ? (
         <TouchableOpacity
           style={styles.fab}
@@ -334,145 +418,198 @@ export function FeedScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 6,
+    backgroundColor: theme.feed.backgroundEnd,
   },
-  listContent: {
-    padding: 16,
-    paddingTop: 8,
+  halo: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    height: 260,
+    opacity: 0.55,
   },
-  separator: {
-    height: 12,
-  },
-  centered: {
+  content: {
     flex: 1,
+  },
+  headerArea: {
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  headerTitle: {
+    color: theme.feed.textPrimary,
+    fontSize: 24,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+  searchButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 32,
+    backgroundColor: 'rgba(59,130,246,0.14)',
+    borderWidth: 1,
+    borderColor: theme.feed.border,
+    shadowColor: theme.feed.accentBlue,
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 6,
+  },
+  searchIcon: {
+    color: theme.feed.accentBlue,
+  },
+  modeSwitch: {
+    marginTop: 14,
+    borderRadius: 22,
+    padding: 6,
+    backgroundColor: 'rgba(148,163,184,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(148,163,184,0.2)',
+    overflow: 'hidden',
+  },
+  modeTrack: {
+    position: 'absolute',
+    top: 6,
+    bottom: 6,
+    left: 6,
+    right: 6,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.02)',
+  },
+  modeIndicator: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    borderRadius: 16,
+    shadowColor: theme.feed.accentBlue,
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 6,
+  },
+  modeIndicatorGradient: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 16,
+  },
+  modeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  modeButton: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  modeLabel: {
+    color: theme.feed.textMuted,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+  },
+  modeLabelActive: {
+    color: theme.feed.textPrimary,
+  },
+  dividerGlow: {
+    height: 1,
+    marginTop: 14,
+    marginHorizontal: 4,
+  },
+  listContent: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 80,
+  },
+  listContentWithFab: {
+    paddingBottom: 140,
+  },
+  separator: {
+    height: 14,
   },
   emptyState: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 32,
-    gap: 16,
+    gap: 14,
   },
   emptyText: {
     fontSize: 16,
     fontWeight: '600',
+    color: theme.feed.textPrimary,
+    textAlign: 'center',
   },
   primaryButton: {
-    backgroundColor: '#2563EB',
+    backgroundColor: theme.feed.accentBlue,
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 20,
+    shadowColor: theme.feed.accentBlue,
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 8,
   },
   primaryButtonLabel: {
     color: '#fff',
-    fontWeight: '600',
+    fontWeight: '700',
   },
   fab: {
     position: 'absolute',
     right: 16,
-    bottom: 16,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#2563EB',
+    bottom: 18,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: theme.feed.accentBlue,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: theme.feed.accentBlue,
+    shadowOpacity: 0.4,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 10,
   },
   fabText: {
     color: '#fff',
-    fontSize: 28,
+    fontSize: 30,
     marginTop: -2,
-  },
-  headerAction: {
-    marginRight: 12,
-    color: '#2563EB',
-    fontWeight: '600',
-  },
-  modeSwitch: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    gap: 8,
-    alignItems: 'center',
-  },
-  modeTrack: {
-    position: 'absolute',
-    left: 16,
-    right: 116,
-    top: 10,
-    bottom: 10,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    overflow: 'hidden',
-  },
-  modeIndicator: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    borderRadius: 14,
-    backgroundColor: 'rgba(124,58,237,0.18)',
-  },
-  modeButton: {
-    flex: 1,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    paddingVertical: 10,
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-  },
-  modeButtonActive: {
-    backgroundColor: '#2563EB',
-    borderColor: '#2563EB',
-  },
-  modeLabel: {
-    color: '#1F2937',
-    fontWeight: '700',
-  },
-  modeLabelActive: {
-    color: '#fff',
-  },
-  reelsButton: {
-    marginLeft: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 12,
-    backgroundColor: '#0EA5E9',
-  },
-  reelsLabel: {
-    color: '#0B1120',
-    fontWeight: '700',
   },
   skeletonList: {
     paddingHorizontal: 16,
-    paddingTop: 8,
+    paddingTop: 12,
   },
   footerSkeletons: {
     paddingHorizontal: 16,
     paddingVertical: 8,
   },
   errorState: {
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
   },
   errorCard: {
     borderRadius: 20,
     padding: 18,
+    backgroundColor: theme.feed.glass,
+    borderWidth: 1,
+    borderColor: theme.feed.border,
   },
   errorTitle: {
-    color: '#fff',
+    color: theme.feed.textPrimary,
     fontSize: 18,
     fontWeight: '700',
     marginBottom: 6,
   },
   errorSubtitle: {
-    color: '#E2E8F0',
+    color: theme.feed.textMuted,
     marginBottom: 12,
   },
   retryButton: {
-    backgroundColor: '#0EA5E9',
+    backgroundColor: theme.feed.accentCyan,
     borderRadius: 12,
     paddingVertical: 10,
     paddingHorizontal: 14,

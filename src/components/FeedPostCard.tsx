@@ -37,10 +37,13 @@ function FeedPostCardComponent({ post, shouldPlayVideo = false, isFeedFocused }:
   const unlikePost = useFeedStore((state) => state.unlikePost);
   const entrance = useEntranceAnimation();
   const pressAnim = usePressScaleAnimation(0.985);
+  const likePress = usePressScaleAnimation(0.96);
+  const commentPress = usePressScaleAnimation(0.96);
   const heartScale = useRef(new Animated.Value(0)).current;
   const [pulseKey, setPulseKey] = useState(0);
   const [followPending, setFollowPending] = useState(false);
   const [likePending, setLikePending] = useState(false);
+  const pulse = usePulseAnimation(pulseKey);
   const [isFollowing, setIsFollowing] = useState(() => {
     if ((post.author as any).is_following !== undefined) {
       return Boolean((post.author as any).is_following);
@@ -140,7 +143,7 @@ function FeedPostCardComponent({ post, shouldPlayVideo = false, isFeedFocused }:
         style={[styles.card, pressAnim.style]}
       >
         <LinearGradient
-          colors={theme.gradients.cosmicBlue}
+          colors={[theme.feed.accentBlue, theme.feed.accentCyan]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.cardGradient}
@@ -197,25 +200,50 @@ function FeedPostCardComponent({ post, shouldPlayVideo = false, isFeedFocused }:
                 onPress={handleLikeToggle}
                 accessibilityRole="button"
                 disabled={likePending}
+                onPressIn={likePress.onPressIn}
+                onPressOut={likePress.onPressOut}
                 style={[
                   styles.actionPill,
-                  post.liked && styles.actionPillActive,
                   likePending && styles.likeDisabled,
+                  likePress.style,
                 ]}
+                activeOpacity={0.9}
               >
-                <Animated.View style={usePulseAnimation(pulseKey).animatedStyle}>
-                  <Text style={styles.actionText}>
-                    {post.liked ? 'Unlike' : 'Like'} • {post.like_count}
-                  </Text>
-                </Animated.View>
+                <LinearGradient
+                  colors={
+                    post.liked
+                      ? [theme.feed.accentBlue, theme.feed.accentCyan]
+                      : ['rgba(59,130,246,0.18)', 'rgba(34,211,238,0.12)']
+                  }
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.actionGradient}
+                >
+                  <Animated.View style={pulse.animatedStyle}>
+                    <Text
+                      style={[styles.actionText, post.liked && styles.actionTextActive]}
+                    >
+                      {post.liked ? 'Unlike' : 'Like'} • {post.like_count}
+                    </Text>
+                  </Animated.View>
+                </LinearGradient>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={handleOpenDetails}
                 accessibilityRole="button"
-                style={styles.actionPill}
+                style={[styles.actionPill, commentPress.style]}
                 activeOpacity={0.85}
+                onPressIn={commentPress.onPressIn}
+                onPressOut={commentPress.onPressOut}
               >
-                <Text style={styles.actionText}>Comments • {post.comment_count}</Text>
+                <LinearGradient
+                  colors={['rgba(148,163,184,0.16)', 'rgba(59,130,246,0.12)']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.actionGradient}
+                >
+                  <Text style={styles.actionText}>Comments • {post.comment_count}</Text>
+                </LinearGradient>
               </TouchableOpacity>
             </View>
           </View>
@@ -246,22 +274,22 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: 24,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOpacity: 0.28,
-    shadowRadius: 18,
+    shadowColor: theme.feed.accentBlue,
+    shadowOpacity: 0.15,
+    shadowRadius: 14,
     shadowOffset: { width: 0, height: 10 },
-    elevation: 8,
+    elevation: 10,
   },
   cardGradient: {
     padding: 1.5,
     borderRadius: 24,
   },
   cardInner: {
-    backgroundColor: '#0B1120',
+    backgroundColor: theme.feed.glass,
     borderRadius: 22,
     padding: 18,
     borderWidth: 1,
-    borderColor: 'rgba(148,163,184,0.12)',
+    borderColor: theme.feed.border,
   },
   header: {
     flexDirection: 'row',
@@ -273,28 +301,28 @@ const styles = StyleSheet.create({
   },
   author: {
     fontWeight: '600',
-    color: '#F8FAFC',
+    color: theme.feed.textPrimary,
     fontSize: 16,
   },
   handle: {
-    color: '#94A3B8',
+    color: theme.feed.textMuted,
     fontSize: 12,
   },
   timestamp: {
-    color: '#94A3B8',
+    color: theme.feed.textMuted,
     fontSize: 12,
   },
   followButton: {
     borderWidth: 1,
-    borderColor: '#38BDF8',
+    borderColor: theme.feed.border,
     paddingHorizontal: 14,
     paddingVertical: 6,
     borderRadius: 999,
     alignSelf: 'center',
-    backgroundColor: 'rgba(56,189,248,0.12)',
+    backgroundColor: 'rgba(59,130,246,0.12)',
   },
   followButtonText: {
-    color: '#E2E8F0',
+    color: theme.feed.textPrimary,
     fontSize: 12,
     fontWeight: '600',
   },
@@ -303,7 +331,7 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: 'rgba(148,163,184,0.18)',
+    backgroundColor: theme.feed.glow,
     marginTop: 16,
   },
   footer: {
@@ -313,25 +341,28 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   actionPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 999,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(96,165,250,0.4)',
-    backgroundColor: 'rgba(96,165,250,0.08)',
     flex: 1,
-    justifyContent: 'center',
+    borderRadius: 999,
+    overflow: 'hidden',
   },
-  actionPillActive: {
-    borderColor: '#38BDF8',
-    backgroundColor: 'rgba(56,189,248,0.18)',
+  actionGradient: {
+    width: '100%',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: theme.feed.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
   },
   actionText: {
-    color: '#60A5FA',
-    fontWeight: '600',
+    color: theme.feed.textPrimary,
+    fontWeight: '700',
     textAlign: 'center',
+  },
+  actionTextActive: {
+    color: '#fff',
   },
   likeDisabled: {
     opacity: 0.6,
