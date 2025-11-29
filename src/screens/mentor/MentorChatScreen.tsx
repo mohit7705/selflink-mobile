@@ -100,7 +100,7 @@ export function MentorChatScreen() {
     startStream,
     reset: resetStream,
   } = useMentorStream({
-    mode: 'default',
+    mode: 'chat_mentor',
     language: userLanguage || undefined,
   });
 

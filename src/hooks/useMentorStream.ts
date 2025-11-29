@@ -60,6 +60,7 @@ export function useMentorStream(
   const fallbackUsedRef = useRef(false);
   const pendingMessageRef = useRef<string | null>(null);
   const streamTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const localStreamTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const clearStreamTimeout = useCallback(() => {
     if (streamTimeoutRef.current) {
@@ -69,42 +70,64 @@ export function useMentorStream(
   }, []);
 
   const closeStream = useCallback(() => {
-    const source: any = eventSourceRef.current;
-    eventSourceRef.current = null;
+    const source = eventSourceRef.current as unknown as { close?: () => void } | null;
     try {
-      if (!source) {
-        return;
-      }
-      source.onopen = null;
-      source.onmessage = null;
-      source.onerror = null;
-      if (source.removeEventListener) {
-        source.removeEventListener('start', source.onmessage);
-        source.removeEventListener('token', source.onmessage);
-        source.removeEventListener('end', source.onmessage);
-        source.removeEventListener('error', source.onerror);
-      }
-      if (source._xhr && typeof source._xhr.abort === 'function') {
-        source._xhr.abort();
-      } else if (typeof source.close === 'function') {
+      if (source?.close) {
         source.close();
       }
-    } catch {
-      // swallow; cleanup must be safe
+    } catch (err) {
+      if (__DEV__) {
+        console.debug('[useMentorStream] closeStream error', err);
+      }
     } finally {
+      eventSourceRef.current = null;
       clearStreamTimeout();
     }
   }, [clearStreamTimeout]);
 
+  const stopLocalStream = useCallback(() => {
+    if (localStreamTimerRef.current) {
+      clearInterval(localStreamTimerRef.current);
+      localStreamTimerRef.current = null;
+    }
+  }, []);
+
+  const playLocalStream = useCallback(
+    (full: string, speedMs = 20, chunkSize = 3) => {
+      stopLocalStream();
+      setReplyText('');
+      if (!full) {
+        setIsStreaming(false);
+        return;
+      }
+
+      setIsStreaming(true);
+      let index = 0;
+
+      localStreamTimerRef.current = setInterval(() => {
+        index += chunkSize;
+        const next = full.slice(0, index);
+        setReplyText(next);
+
+        if (index >= full.length) {
+          stopLocalStream();
+          setIsStreaming(false);
+        }
+      }, speedMs);
+    },
+    [stopLocalStream],
+  );
+
   const reset = useCallback(() => {
     closeStream();
+    stopLocalStream();
     fallbackUsedRef.current = false;
     pendingMessageRef.current = null;
     setError(null);
     setReplyText('');
     setSessionId(null);
     setIsStreaming(false);
-  }, [closeStream]);
+  }, [closeStream, stopLocalStream]);
 
   const fallbackToHttp = useCallback(
     async (message: string, mode: string, language: string) => {
@@ -115,21 +138,24 @@ export function useMentorStream(
       }
       try {
         const response = await callMentorChat({ mode, language, message });
-        setSessionId(response.sessionId);
-        setReplyText(response.reply);
-        setError(null);
+        const reply = response.reply ?? '';
+        const sid = response.sessionId ?? (response as any).session_id ?? null;
+        setSessionId(sid);
+        playLocalStream(reply);
+        if (reply.trim()) {
+          setError(null);
+        }
       } catch (fallbackError) {
-        const fallbackMessage =
-          fallbackError instanceof Error
-            ? fallbackError.message
-            : 'Mentor is temporarily unavailable.';
-        setError(fallbackMessage);
-      } finally {
+        stopLocalStream();
         setIsStreaming(false);
-        closeStream();
+        const fallbackMessage =
+          fallbackError instanceof Error && fallbackError.message
+            ? fallbackError.message
+            : 'Mentor is temporarily unavailable. Please try again.';
+        setError(fallbackMessage);
       }
     },
-    [clearStreamTimeout, closeStream],
+    [clearStreamTimeout, playLocalStream, stopLocalStream],
   );
 
   const startStream = useCallback(
@@ -139,17 +165,12 @@ export function useMentorStream(
         return;
       }
 
-      closeStream();
+      reset();
       const mode = options?.mode ?? DEFAULT_MODE;
       const language = options?.language ?? DEFAULT_LANGUAGE;
 
-      setError(null);
-      setReplyText('');
-      setSessionId(null);
       setIsStreaming(true);
-      fallbackUsedRef.current = false;
       pendingMessageRef.current = trimmed;
-      clearStreamTimeout();
 
       const streamUrl = buildMentorStreamUrl({
         mode,
@@ -162,6 +183,9 @@ export function useMentorStream(
       }
 
       const handleFailure = (detail?: string) => {
+        if (__DEV__) {
+          console.debug('[useMentorStream] SSE error, switching to POST', detail);
+        }
         clearStreamTimeout();
         closeStream();
         if (!fallbackUsedRef.current) {
@@ -216,34 +240,51 @@ export function useMentorStream(
           accessToken && accessToken.length > 0
             ? { Authorization: `Bearer ${accessToken}` }
             : undefined;
-        const source = new EventSource(streamUrl, { headers });
+        const source = new EventSource(streamUrl, { headers }) as EventSource & {
+          onopen?: () => void;
+        };
         eventSourceRef.current = source;
 
         streamTimeoutRef.current = setTimeout(() => {
           handleFailure('Stream timeout. Using fallback.');
         }, STREAM_TIMEOUT_MS);
 
-        source.onmessage = (event: StreamMessageEvent) =>
-          event.data ? handlePayload(event.data) : undefined;
-        source.onerror = () => handleFailure('Stream connection error.');
+        (source as any).onopen = () => {
+          if (__DEV__) {
+            console.debug('[useMentorStream] SSE opened');
+          }
+        };
 
-        source.addEventListener('start', (event: StreamMessageEvent) =>
-          event.data ? handlePayload(event.data) : undefined,
-        );
-        source.addEventListener('token', (event: StreamMessageEvent) =>
-          event.data ? handlePayload(event.data) : undefined,
-        );
-        source.addEventListener('end', (event: StreamMessageEvent) =>
-          event.data ? handlePayload(event.data) : undefined,
-        );
-        source.addEventListener('error', (event: StreamMessageEvent) => {
-          const parsed = event.data ? parsePayload(event.data) : null;
-          const detail =
-            parsed?.event === 'error' && typeof parsed.detail === 'string'
-              ? parsed.detail
-              : 'Stream error. Using fallback.';
-          handleFailure(detail);
-        });
+        source.onmessage = (event: StreamMessageEvent) => {
+          if (!event.data) {
+            return;
+          }
+          const payload = parsePayload(event.data);
+          if (payload?.event) {
+            handlePayload(event.data);
+            return;
+          }
+          const token = (payload as any)?.token || (payload as any)?.delta;
+          const done = (payload as any)?.done === true;
+          const session_id = (payload as any)?.session_id;
+          if (typeof session_id === 'number') {
+            setSessionId(session_id);
+          }
+          if (typeof token === 'string') {
+            setReplyText((current) => current + token);
+          }
+          if (done) {
+            setIsStreaming(false);
+            closeStream();
+          }
+          clearStreamTimeout();
+        };
+
+        source.onerror = (event: any) => {
+          const status = event?.status ?? event?.target?._xhr?.status;
+          const detail = status ? `status ${status}` : undefined;
+          handleFailure(detail ?? 'Stream connection error.');
+        };
       } catch {
         handleFailure('Unable to open stream. Using fallback.');
       }
@@ -256,6 +297,7 @@ export function useMentorStream(
       clearStreamTimeout,
       options?.language,
       options?.mode,
+      reset,
     ],
   );
 
@@ -263,8 +305,9 @@ export function useMentorStream(
     return () => {
       closeStream();
       clearStreamTimeout();
+      stopLocalStream();
     };
-  }, [clearStreamTimeout, closeStream]);
+  }, [clearStreamTimeout, closeStream, stopLocalStream]);
 
   return {
     isStreaming,
