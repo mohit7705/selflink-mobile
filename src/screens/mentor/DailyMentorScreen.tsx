@@ -1,6 +1,6 @@
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -15,11 +15,10 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useToast } from '@context/ToastContext';
+import { useMentorStream } from '@hooks/useMentorStream';
 import { MentorStackParamList } from '@navigation/types';
 import {
-  createDailyMentorEntry,
   fetchDailyMentorHistory,
-  type DailyMentorEntryResponse,
   type DailyMentorHistoryItem,
 } from '@services/api/mentor';
 import { useAuthStore } from '@store/authStore';
@@ -33,6 +32,13 @@ const makePreview = (value: string) => {
   return value.length > 100 ? `${value.slice(0, 100).trim()}…` : value;
 };
 
+type DailyMentorReply = {
+  session_id: number | null;
+  date: string;
+  reply: string;
+  entry?: string;
+};
+
 export function DailyMentorScreen() {
   const toast = useToast();
   const navigation =
@@ -43,10 +49,13 @@ export function DailyMentorScreen() {
   const [entry, setEntry] = useState('');
   const [entryDate, setEntryDate] = useState(todayString());
   const [submitting, setSubmitting] = useState(false);
-  const [latestReply, setLatestReply] = useState<DailyMentorEntryResponse | null>(null);
+  const [latestReply, setLatestReply] = useState<DailyMentorReply | null>(null);
   const [history, setHistory] = useState<DailyMentorHistoryItem[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const historyRequestRef = useRef(false);
+  const committedReplyRef = useRef<string | null>(null);
+  const pendingEntryRef = useRef<string | null>(null);
 
   const userLanguage = useMemo(
     () =>
@@ -55,8 +64,21 @@ export function DailyMentorScreen() {
     [currentUser?.locale, currentUser?.settings?.language],
   );
 
+  const {
+    isStreaming,
+    error: streamError,
+    replyText,
+    sessionId: streamingSessionId,
+    startStream,
+    reset: resetStream,
+  } = useMentorStream({ mode: 'daily_mentor', language: userLanguage || undefined });
+
   const loadHistory = useCallback(async () => {
+    if (historyRequestRef.current) {
+      return;
+    }
     try {
+      historyRequestRef.current = true;
       setHistoryLoading(true);
       const response = await fetchDailyMentorHistory(7);
       const items = Array.isArray(response)
@@ -69,6 +91,7 @@ export function DailyMentorScreen() {
       console.error('DailyMentorScreen: failed to load history', error);
       toast.push({ message: 'Unable to load recent entries.', tone: 'error' });
     } finally {
+      historyRequestRef.current = false;
       setHistoryLoading(false);
       setRefreshing(false);
     }
@@ -80,42 +103,108 @@ export function DailyMentorScreen() {
 
   const handleSubmit = useCallback(async () => {
     const trimmed = entry.trim();
-    if (!trimmed || submitting) {
+    if (!trimmed || submitting || isStreaming) {
       return;
     }
     setSubmitting(true);
-    try {
-      const response = await createDailyMentorEntry({
-        text: trimmed,
-        date: entryDate || undefined,
-        language: userLanguage || undefined,
-      });
-      setLatestReply(response);
-      setEntry('');
-      const previewEntry = response.entry ?? trimmed;
+    pendingEntryRef.current = trimmed;
+    committedReplyRef.current = null;
+    setLatestReply({
+      session_id: streamingSessionId,
+      date: entryDate,
+      reply: '',
+      entry: trimmed,
+    });
+    setEntry('');
+    resetStream();
+    startStream(trimmed);
+  }, [
+    entry,
+    entryDate,
+    isStreaming,
+    resetStream,
+    startStream,
+    streamingSessionId,
+    submitting,
+  ]);
+
+  useEffect(() => {
+    if (!pendingEntryRef.current) {
+      return;
+    }
+    setLatestReply((current) =>
+      current
+        ? {
+            ...current,
+            reply: replyText,
+            session_id: streamingSessionId ?? current.session_id,
+          }
+        : {
+            session_id: streamingSessionId ?? null,
+            date: entryDate,
+            reply: replyText,
+            entry: pendingEntryRef.current ?? undefined,
+          },
+    );
+  }, [entryDate, replyText, streamingSessionId]);
+
+  useEffect(() => {
+    if (!isStreaming && pendingEntryRef.current && !streamError) {
+      const currentReply = replyText || '';
+      if (!currentReply) {
+        setSubmitting(false);
+        pendingEntryRef.current = null;
+        return;
+      }
+      if (committedReplyRef.current === currentReply) {
+        return;
+      }
+      committedReplyRef.current = currentReply;
+      const session_id = streamingSessionId ?? Date.now();
+      const entryPreview = makePreview(pendingEntryRef.current);
+      const replyPreview = makePreview(replyText);
       const historyItem: DailyMentorHistoryItem = {
-        session_id: response.session_id,
-        date: response.date,
-        entry_preview: makePreview(previewEntry),
-        reply_preview: makePreview(response.reply),
+        session_id,
+        date: entryDate,
+        entry_preview: entryPreview,
+        reply_preview: replyPreview,
       };
       setHistory((current) => {
-        const filtered = current.filter(
-          (item) => item.session_id !== response.session_id,
-        );
+        const filtered = current.filter((item) => item.session_id !== session_id);
         return [historyItem, ...filtered].slice(0, 7);
       });
-      toast.push({ message: 'Reflection saved', tone: 'info', duration: 1200 });
-    } catch (error) {
-      console.error('DailyMentorScreen: failed to submit entry', error);
-      toast.push({
-        message: 'Could not save your entry. Please try again.',
-        tone: 'error',
-      });
-    } finally {
+      setLatestReply((current) =>
+        current
+          ? { ...current, session_id, reply: replyText }
+          : {
+              session_id,
+              date: entryDate,
+              reply: replyText,
+              entry: pendingEntryRef.current ?? undefined,
+            },
+      );
       setSubmitting(false);
+      pendingEntryRef.current = null;
     }
-  }, [entry, entryDate, submitting, toast, userLanguage]);
+  }, [entryDate, isStreaming, replyText, streamError, streamingSessionId]);
+
+  useEffect(() => {
+    if (!streamError) {
+      return;
+    }
+    const failed = pendingEntryRef.current;
+    if (failed) {
+      setEntry(failed);
+    }
+    pendingEntryRef.current = null;
+    committedReplyRef.current = null;
+    setSubmitting(false);
+    setLatestReply(null);
+    toast.push({
+      message: streamError || 'Mentor is temporarily unavailable. Please try again.',
+      tone: 'error',
+    });
+  }, [streamError, toast]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -166,6 +255,7 @@ export function DailyMentorScreen() {
             <DailyMentorHeader
               entry={entry}
               entryDate={entryDate}
+              isStreaming={isStreaming}
               submitting={submitting}
               latestReply={latestReply}
               onChangeEntry={setEntry}
@@ -198,8 +288,9 @@ export function DailyMentorScreen() {
 type HeaderProps = {
   entry: string;
   entryDate: string;
+  isStreaming: boolean;
   submitting: boolean;
-  latestReply: DailyMentorEntryResponse | null;
+  latestReply: DailyMentorReply | null;
   onChangeEntry: (value: string) => void;
   onChangeEntryDate: (value: string) => void;
   onSubmit: () => void;
@@ -211,6 +302,7 @@ type HeaderProps = {
 function DailyMentorHeader({
   entry,
   entryDate,
+  isStreaming,
   submitting,
   latestReply,
   onChangeEntry,
@@ -267,17 +359,26 @@ function DailyMentorHeader({
         <TouchableOpacity
           style={[
             styles.submitButton,
-            !entry.trim() || submitting ? styles.submitButtonDisabled : null,
+            !entry.trim() || submitting || isStreaming
+              ? styles.submitButtonDisabled
+              : null,
           ]}
           onPress={onSubmit}
-          disabled={!entry.trim() || submitting}
+          disabled={!entry.trim() || submitting || isStreaming}
         >
-          {submitting ? (
+          {submitting || isStreaming ? (
             <ActivityIndicator color={theme.palette.pearl} />
           ) : (
             <Text style={styles.submitText}>Get reflection</Text>
           )}
         </TouchableOpacity>
+
+        {isStreaming ? (
+          <View style={styles.streamingRow}>
+            <ActivityIndicator color={theme.palette.pearl} size="small" />
+            <Text style={styles.streamingText}>Daily Mentor is replying…</Text>
+          </View>
+        ) : null}
 
         {latestReply ? (
           <View style={styles.replyBlock}>
@@ -454,6 +555,15 @@ const styles = StyleSheet.create({
     color: theme.palette.platinum,
     ...theme.typography.subtitle,
     flex: 1,
+  },
+  streamingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+  },
+  streamingText: {
+    color: theme.palette.platinum,
+    ...theme.typography.caption,
   },
   sessionTag: {
     color: theme.palette.silver,

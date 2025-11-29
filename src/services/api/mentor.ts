@@ -1,4 +1,6 @@
+import { env } from '@config/env';
 import { apiClient } from '@services/api/client';
+import { buildUrl } from '@utils/url';
 
 export type MentorProfile = {
   id?: number;
@@ -164,4 +166,62 @@ export async function fetchDailyMentorSession(
   return apiClient.request(`/api/v1/mentor/daily/session/${sessionId}/`, {
     method: 'GET',
   });
+}
+
+export type MentorChatRequest = {
+  mode: string;
+  language?: string | null;
+  message: string;
+};
+
+export type MentorChatResponse = {
+  sessionId: number | null;
+  mode: string;
+  reply: string;
+};
+
+type MentorChatRawResponse = {
+  session_id?: number | null;
+  mode: string;
+  reply: string;
+};
+
+export async function callMentorChat(
+  payload: MentorChatRequest,
+): Promise<MentorChatResponse> {
+  const response = await apiClient.request<MentorChatRawResponse>(
+    '/api/v1/mentor/chat/',
+    {
+      method: 'POST',
+      body: payload,
+    },
+  );
+
+  return {
+    sessionId: response.session_id ?? null,
+    mode: response.mode,
+    reply: response.reply,
+  };
+}
+
+type MentorStreamUrlParams = {
+  mode: string;
+  language?: string | null;
+  message: string;
+};
+
+export function buildMentorStreamUrl({
+  mode,
+  language,
+  message,
+}: MentorStreamUrlParams): string {
+  const searchParams = new URLSearchParams();
+  searchParams.set('mode', mode);
+  if (language) {
+    searchParams.set('language', language);
+  }
+  searchParams.set('message', message);
+
+  const path = `/api/v1/mentor/stream/?${searchParams.toString()}`;
+  return buildUrl(env.backendUrl, path);
 }

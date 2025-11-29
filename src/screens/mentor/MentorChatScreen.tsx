@@ -20,9 +20,9 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { MentorMessageContent } from '@components/chat/MentorMessageContent';
 import { useToast } from '@context/ToastContext';
+import { useMentorStream } from '@hooks/useMentorStream';
 import {
   fetchMentorHistory,
-  sendMentorChat,
   type MentorHistoryMessage,
 } from '@services/api/mentorSessions';
 import { useAuthStore } from '@store/authStore';
@@ -80,6 +80,29 @@ export function MentorChatScreen() {
   const [lastFailedMessage, setLastFailedMessage] = useState<string | null>(null);
   const [shouldScrollToEnd, setShouldScrollToEnd] = useState(false);
   const listRef = useRef<FlatList<ChatMessage> | null>(null);
+  const [streamingMentorId, setStreamingMentorId] = useState<string | null>(null);
+  const pendingUserIdRef = useRef<string | null>(null);
+  const pendingMessageRef = useRef<string | null>(null);
+  const historyRequestRef = useRef(false);
+
+  const userLanguage = useMemo(() => {
+    return (
+      currentUser?.settings?.language ||
+      (currentUser?.locale ? currentUser.locale.split('-')[0] : undefined)
+    );
+  }, [currentUser?.locale, currentUser?.settings?.language]);
+
+  const {
+    isStreaming,
+    error: streamError,
+    replyText,
+    sessionId: streamingSessionId,
+    startStream,
+    reset: resetStream,
+  } = useMentorStream({
+    mode: 'default',
+    language: userLanguage || undefined,
+  });
 
   const scrollToBottom = useCallback(() => {
     if (listRef.current) {
@@ -93,6 +116,9 @@ export function MentorChatScreen() {
       mode: 'replace' | 'append' = 'replace',
       silent = false,
     ) => {
+      if (historyRequestRef.current) {
+        return;
+      }
       const append = mode === 'append';
       if (append) {
         setLoadingMore(true);
@@ -100,6 +126,7 @@ export function MentorChatScreen() {
         setIsLoading(true);
       }
       try {
+        historyRequestRef.current = true;
         const response = await fetchMentorHistory(cursor ?? undefined);
         const normalized = normalizeHistory(response.results);
         setNextCursor(response.next);
@@ -113,6 +140,7 @@ export function MentorChatScreen() {
         console.error('MentorChatScreen: failed to load history', error);
         toast.push({ message: 'Unable to load mentor history.', tone: 'error' });
       } finally {
+        historyRequestRef.current = false;
         if (append) {
           setLoadingMore(false);
         } else {
@@ -146,6 +174,87 @@ export function MentorChatScreen() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!streamingMentorId) {
+      return;
+    }
+    setMessages((current) =>
+      current.map((msg) =>
+        msg.id === streamingMentorId ? { ...msg, content: replyText } : msg,
+      ),
+    );
+    if (replyText) {
+      setShouldScrollToEnd(true);
+    }
+  }, [replyText, streamingMentorId]);
+
+  useEffect(() => {
+    if (!streamingSessionId || (!streamingMentorId && !pendingUserIdRef.current)) {
+      return;
+    }
+    setMessages((current) =>
+      current.map((msg) => {
+        if (
+          msg.id === streamingMentorId ||
+          (pendingUserIdRef.current && msg.id === pendingUserIdRef.current)
+        ) {
+          return { ...msg, session_id: streamingSessionId };
+        }
+        return msg;
+      }),
+    );
+  }, [streamingMentorId, streamingSessionId]);
+
+  useEffect(() => {
+    if (!streamingMentorId) {
+      return;
+    }
+    if (!isStreaming) {
+      setIsSending(false);
+      setAwaitingReply(false);
+      setMessages((current) =>
+        current.map((msg) => {
+          if (msg.id === streamingMentorId) {
+            return {
+              ...msg,
+              session_id: streamingSessionId ?? msg.session_id,
+              created_at: msg.created_at || new Date().toISOString(),
+            };
+          }
+          if (pendingUserIdRef.current && msg.id === pendingUserIdRef.current) {
+            return { ...msg, session_id: streamingSessionId ?? msg.session_id };
+          }
+          return msg;
+        }),
+      );
+      pendingUserIdRef.current = null;
+      pendingMessageRef.current = null;
+      setStreamingMentorId(null);
+    } else {
+      setAwaitingReply(true);
+    }
+  }, [isStreaming, streamingMentorId, streamingSessionId]);
+
+  useEffect(() => {
+    if (!streamError) {
+      return;
+    }
+    setMessages((current) =>
+      current.filter(
+        (msg) => msg.id !== streamingMentorId && msg.id !== pendingUserIdRef.current,
+      ),
+    );
+    if (pendingMessageRef.current) {
+      setInput(pendingMessageRef.current);
+      setLastFailedMessage(pendingMessageRef.current);
+    }
+    setSendError(streamError);
+    setIsSending(false);
+    setAwaitingReply(false);
+    setStreamingMentorId(null);
+    pendingUserIdRef.current = null;
+  }, [streamError, streamingMentorId]);
+
   const handleRefresh = useCallback(() => {
     setRefreshing(true);
     loadHistory(undefined, 'replace', true).catch(() => undefined);
@@ -172,24 +281,37 @@ export function MentorChatScreen() {
   );
 
   const sendMessage = useCallback(
-    async (overrideText?: string) => {
+    (overrideText?: string) => {
       const trimmed = (overrideText ?? input).trim();
-      if (!trimmed || isSending) {
+      if (!trimmed || isSending || isStreaming) {
         return;
       }
-      const userLanguage =
-        currentUser?.settings?.language ||
-        (currentUser?.locale ? currentUser.locale.split('-')[0] : undefined);
       const now = new Date().toISOString();
+      const userMessageId = `local-user-${Date.now()}`;
+      const mentorMessageId = `local-mentor-${Date.now()}`;
       const optimisticUser: ChatMessage = {
-        id: `local-user-${Date.now()}`,
-        session_id: 0,
+        id: userMessageId,
+        session_id: streamingSessionId ?? 0,
         role: 'user',
         content: trimmed,
         meta: null,
         created_at: now,
       };
-      setMessages((current) => sortMessages([...current, optimisticUser]));
+      const optimisticMentor: ChatMessage = {
+        id: mentorMessageId,
+        session_id: streamingSessionId ?? 0,
+        role: 'mentor',
+        content: '',
+        meta: null,
+        created_at: new Date().toISOString(),
+      };
+
+      pendingUserIdRef.current = userMessageId;
+      pendingMessageRef.current = trimmed;
+      setStreamingMentorId(mentorMessageId);
+      setMessages((current) =>
+        sortMessages([...current, optimisticUser, optimisticMentor]),
+      );
       setInput('');
       setInputHeight(0);
       setIsSending(true);
@@ -197,61 +319,21 @@ export function MentorChatScreen() {
       setSendError(null);
       setLastFailedMessage(null);
       setShouldScrollToEnd(true);
-
-      try {
-        const response = await sendMentorChat({
-          message: trimmed,
-          mode: 'default',
-          language: userLanguage || undefined,
-        });
-        const sessionId = response.session_id;
-        const userMessage: ChatMessage = {
-          id: String(response.user_message_id ?? optimisticUser.id),
-          session_id: sessionId,
-          role: 'user',
-          content: trimmed,
-          meta: response.meta?.user_flags ?? null,
-          created_at: now,
-        };
-        const mentorMessage: ChatMessage = {
-          id: String(response.mentor_message_id ?? `mentor-${Date.now()}`),
-          session_id: sessionId,
-          role: 'mentor',
-          content: response.mentor_reply,
-          meta: response.meta?.mentor_flags ?? null,
-          created_at: new Date().toISOString(),
-        };
-
-        setMessages((current) =>
-          mergeMessages(
-            current.filter((msg) => msg.id !== optimisticUser.id),
-            [userMessage, mentorMessage],
-          ),
-        );
-        setShouldScrollToEnd(true);
-      } catch (error) {
-        console.error('MentorChatScreen: failed to send mentor chat', error);
-        setMessages((current) => current.filter((msg) => msg.id !== optimisticUser.id));
-        setInput(trimmed);
-        setSendError('Mentor is temporarily unavailable. Please try again.');
-        setLastFailedMessage(trimmed);
-      } finally {
-        setIsSending(false);
-        setAwaitingReply(false);
-      }
+      resetStream();
+      startStream(trimmed);
     },
-    [currentUser?.locale, currentUser?.settings?.language, input, isSending],
+    [input, isSending, isStreaming, resetStream, startStream, streamingSessionId],
   );
 
   const handleSend = useCallback(() => {
-    sendMessage().catch(() => undefined);
+    sendMessage();
   }, [sendMessage]);
 
   const handleResend = useCallback(() => {
     if (!lastFailedMessage) {
       return;
     }
-    sendMessage(lastFailedMessage).catch(() => undefined);
+    sendMessage(lastFailedMessage);
   }, [lastFailedMessage, sendMessage]);
 
   const renderMessage = useCallback(
@@ -318,7 +400,7 @@ export function MentorChatScreen() {
   const footer = useMemo(() => {
     return (
       <View style={styles.footer}>
-        {awaitingReply ? (
+        {awaitingReply && !replyText ? (
           <View style={[styles.messageRow, styles.messageRowLeft, styles.typingRow]}>
             <View style={[styles.bubble, styles.mentorBubble, styles.typingBubble]}>
               <ActivityIndicator size="small" color={chatTheme.bubble.mentor.text} />
@@ -356,6 +438,7 @@ export function MentorChatScreen() {
     lastFailedMessage,
     loadingMore,
     nextCursor,
+    replyText,
     sendError,
   ]);
 

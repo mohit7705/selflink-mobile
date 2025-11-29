@@ -1,14 +1,25 @@
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useCallback, useEffect, useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 
 import { MetalButton } from '@components/MetalButton';
 import { MetalPanel } from '@components/MetalPanel';
 import { LoadingView } from '@components/StateViews';
 import { useToast } from '@context/ToastContext';
+import { useMentorStream } from '@hooks/useMentorStream';
 import { SoulMatchStackParamList } from '@navigation/types';
 import { fetchSoulmatchMentor } from '@services/api/mentor';
+import { useAuthStore } from '@store/authStore';
 import { theme } from '@theme/index';
 
 type Route = RouteProp<SoulMatchStackParamList, 'SoulMatchMentor'>;
@@ -19,11 +30,49 @@ export function SoulMatchMentorScreen() {
   const navigation = useNavigation<Nav>();
   const { userId, displayName } = route.params;
   const toast = useToast();
+  const currentUser = useAuthStore((state) => state.currentUser);
   const [mentorText, setMentorText] = useState<string | null>(null);
   const [score, setScore] = useState<number | null>(null);
   const [tags, setTags] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [prompt, setPrompt] = useState(
+    displayName
+      ? `What should I know about my compatibility with ${displayName}?`
+      : 'What should I know about our compatibility?',
+  );
+  const pendingPromptRef = useRef<string | null>(null);
+
+  const userLanguage = useMemo(
+    () =>
+      currentUser?.settings?.language ||
+      (currentUser?.locale ? currentUser.locale.split('-')[0] : undefined),
+    [currentUser?.locale, currentUser?.settings?.language],
+  );
+
+  const {
+    isStreaming,
+    error: streamError,
+    replyText,
+    startStream,
+    reset: resetStream,
+  } = useMentorStream({
+    mode: 'soulmatch_mentor',
+    language: userLanguage || undefined,
+  });
+
+  const startSoulMatchStream = useCallback(
+    (message: string) => {
+      const trimmed = message.trim();
+      if (!trimmed || isStreaming) {
+        return;
+      }
+      pendingPromptRef.current = trimmed;
+      resetStream();
+      startStream(trimmed);
+    },
+    [isStreaming, resetStream, startStream],
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -44,6 +93,39 @@ export function SoulMatchMentorScreen() {
     navigation.setOptions?.({ title: displayName || 'SoulMatch Mentor' });
     load().catch(() => undefined);
   }, [displayName, load, navigation]);
+
+  useEffect(() => {
+    if (replyText) {
+      setMentorText(replyText);
+    }
+  }, [replyText]);
+
+  useEffect(() => {
+    if (streamError) {
+      if (pendingPromptRef.current) {
+        setPrompt(pendingPromptRef.current);
+      }
+      toast.push({ message: streamError, tone: 'error' });
+      pendingPromptRef.current = null;
+    }
+  }, [streamError, toast]);
+
+  useEffect(() => {
+    if (!isStreaming && pendingPromptRef.current && !streamError) {
+      pendingPromptRef.current = null;
+    }
+  }, [isStreaming, streamError]);
+
+  const handleSend = useCallback(() => {
+    const base = prompt.trim();
+    if (!base) {
+      return;
+    }
+    const contextual = displayName
+      ? `${base}\n\nContext: This question is about ${displayName} (user ${userId}).`
+      : base;
+    startSoulMatchStream(contextual);
+  }, [displayName, prompt, startSoulMatchStream, userId]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -93,6 +175,38 @@ export function SoulMatchMentorScreen() {
             <MetalButton title="Refresh" onPress={load} />
           </View>
         )}
+        {isStreaming ? (
+          <View style={styles.streamingRow}>
+            <ActivityIndicator size="small" color={theme.palette.platinum} />
+            <Text style={styles.subtitle}>Mentor is analyzing your match…</Text>
+          </View>
+        ) : null}
+      </MetalPanel>
+
+      <MetalPanel>
+        <Text style={styles.fieldLabel}>Ask about your compatibility</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Ask something specific about this match"
+          placeholderTextColor={theme.palette.silver}
+          multiline
+          value={prompt}
+          onChangeText={setPrompt}
+        />
+        <TouchableOpacity
+          style={[
+            styles.submitButton,
+            !prompt.trim() || isStreaming ? styles.submitButtonDisabled : null,
+          ]}
+          onPress={handleSend}
+          disabled={!prompt.trim() || isStreaming}
+        >
+          {isStreaming ? (
+            <ActivityIndicator color={theme.palette.pearl} />
+          ) : (
+            <Text style={styles.submitText}>Ask Mentor</Text>
+          )}
+        </TouchableOpacity>
       </MetalPanel>
 
       <MetalButton title="Back" onPress={() => navigation.goBack()} />
@@ -116,6 +230,44 @@ const styles = StyleSheet.create({
   subtitle: {
     color: theme.palette.silver,
     ...theme.typography.body,
+  },
+  fieldLabel: {
+    color: theme.palette.platinum,
+    ...theme.typography.subtitle,
+    marginBottom: theme.spacing.sm,
+  },
+  input: {
+    minHeight: 100,
+    maxHeight: 200,
+    borderRadius: theme.radii.md,
+    backgroundColor: 'rgba(148, 163, 184, 0.12)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: theme.palette.titanium,
+    padding: theme.spacing.md,
+    color: theme.palette.platinum,
+    ...theme.typography.body,
+    marginBottom: theme.spacing.md,
+  },
+  submitButton: {
+    backgroundColor: theme.palette.glow,
+    paddingVertical: theme.spacing.md,
+    borderRadius: theme.radii.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  submitButtonDisabled: {
+    opacity: 0.6,
+  },
+  submitText: {
+    color: theme.palette.pearl,
+    fontWeight: '700',
+    fontSize: 16,
+  },
+  streamingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    marginTop: theme.spacing.sm,
   },
   scoreBlock: {
     alignItems: 'flex-start',
