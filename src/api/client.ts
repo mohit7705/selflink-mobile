@@ -1,14 +1,7 @@
 import axios, { AxiosError, AxiosRequestConfig } from 'axios';
 
-import { env } from '@config/env';
+import { API_HTTP_BASE_URL } from '@config/env';
 import { parseJsonPreservingLargeInts } from '@utils/json';
-
-const rawBaseUrl = (
-  process.env.EXPO_PUBLIC_API_URL ||
-  env.backendUrl ||
-  'http://localhost:8000'
-).replace(/\/$/, '');
-export const API_BASE_URL = `${rawBaseUrl}/api/v1`;
 
 type TokenProvider = () => string | null;
 type RefreshHandler = () => Promise<string | null>;
@@ -18,7 +11,7 @@ let refreshHandler: RefreshHandler | null = null;
 let pendingRefresh: Promise<string | null> | null = null;
 
 export const apiClient = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: API_HTTP_BASE_URL,
   headers: {
     Accept: 'application/json',
   },

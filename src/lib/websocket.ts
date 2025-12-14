@@ -8,7 +8,7 @@ interface Handlers {
 }
 
 export function connectWebSocket(token: string, handlers: Handlers) {
-  const url = new URL(env.realtimeUrl || 'ws://localhost:8001/ws');
+  const url = new URL(env.realtimeUrl);
   if (token) {
     url.searchParams.set('token', token);
   }

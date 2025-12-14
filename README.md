@@ -34,9 +34,18 @@ src/
 
 ## Environment Config
 
-- `app.json` now exposes `expo.extra.backendUrl`, `expo.extra.healthEndpoint`, and an optional `expo.extra.realtimeUrl` (defaults to `ws(s)` version of `backendUrl` + `/ws`). Adjust these per environment (the fallback points to `http://10.0.2.2:8000` so the Android emulator reaches your local Django server).
-- `src/config/env.ts` reads those values, and `src/hooks/useBackendHealth.ts` uses them to test the Django API’s `/api/health/` endpoint by default.
+- `src/config/env.ts` resolves `API_BASE_URL` from `EXPO_PUBLIC_API_BASE_URL` (or `expo.extra.backendUrl`), defaults to `https://api.self-link.com`, and derives the websocket URL from the same host.
+- `src/hooks/useBackendHealth.ts` uses those values to test the Django API’s `/api/health/` endpoint by default.
 - Extend `src/services/api/client.ts` to add authenticated requests once login is wired.
+
+## Backend URL configuration
+
+- Defaults to `https://api.self-link.com` when no override is provided.
+- Set `EXPO_PUBLIC_API_BASE_URL` for overrides (Expo automatically exposes `EXPO_PUBLIC_*` at runtime).
+- Examples:
+  - Production: `EXPO_PUBLIC_API_BASE_URL=https://api.self-link.com`
+  - Local: `EXPO_PUBLIC_API_BASE_URL=http://<LAN_IP>:8000`
+- For EAS, add the env var to your build profile or Project → Environment Variables so iOS/Android builds pick it up.
 
 ## Authentication Foundation
 
