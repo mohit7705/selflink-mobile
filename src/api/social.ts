@@ -3,6 +3,7 @@ import { isAxiosError } from 'axios';
 import type { FeedItem, FeedResponse } from '@schemas/feed';
 import type { Comment, Post, PostVideo } from '@schemas/social';
 import { resolveBackendUrl } from '@utils/backendUrl';
+import { resolveMediaUrl } from '@utils/media';
 
 import { apiClient } from './client';
 
@@ -116,10 +117,31 @@ const normalizeVideo = (value: any): PostVideo | null => {
   return { url: resolvedUrl, thumbnailUrl, duration, width, height, mimeType };
 };
 
+const isVideoMedia = (item: any): boolean =>
+  typeof item?.mime === 'string' && item.mime.toLowerCase().startsWith('video');
+
+const normalizeVideoFromMedia = (media: any): PostVideo | null => {
+  const url = resolveMediaUrl(media);
+  if (!url) {
+    return null;
+  }
+  const duration = typeof media?.duration === 'number' ? media.duration : null;
+  const width = typeof media?.width === 'number' ? media.width : null;
+  const height = typeof media?.height === 'number' ? media.height : null;
+  const mimeType = typeof media?.mime === 'string' ? media.mime : null;
+  return { url, thumbnailUrl: null, duration, width, height, mimeType };
+};
+
 export const normalizePost = (rawPost: any): Post => {
-  const video = normalizeVideo(rawPost?.video);
+  const rawMedia = Array.isArray(rawPost?.media) ? rawPost.media : [];
+  const videoMedia = rawMedia.find(isVideoMedia);
+  const video = normalizeVideo(rawPost?.video) ?? normalizeVideoFromMedia(videoMedia);
+  const media = videoMedia
+    ? rawMedia.filter((item: any) => !isVideoMedia(item))
+    : rawMedia;
   return {
     ...(rawPost as Post),
+    media,
     video,
   };
 };

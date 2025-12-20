@@ -12,6 +12,7 @@ import type {
   MessageReplyPreview,
 } from '@schemas/messaging';
 import { parseJsonPreservingLargeInts } from '@utils/json';
+import { resolveAssetUrl } from '@utils/media';
 import { buildUrl } from '@utils/url';
 
 import { apiClient } from './client';
@@ -84,8 +85,19 @@ const normalizeAttachments = (
       const duration =
         (resolved as any)?.duration ?? (resolved as any)?.duration_seconds ?? null;
       const rawUrl =
-        (resolved as any)?.url ?? (resolved as any)?.file ?? (item as any)?.url;
-      const resolvedUrl = rawUrl ? buildUrl(env.backendUrl, rawUrl) : null;
+        (resolved as any)?.url ??
+        (resolved as any)?.file ??
+        (resolved as any)?.path ??
+        (resolved as any)?.source ??
+        (resolved as any)?.s3_key ??
+        (resolved as any)?.key ??
+        (item as any)?.url ??
+        (item as any)?.file;
+      const resolvedUrl =
+        resolveAssetUrl(rawUrl ?? resolved ?? item) ??
+        (typeof rawUrl === 'string' && rawUrl.length > 0
+          ? buildUrl(env.backendUrl, rawUrl)
+          : null);
       const rawType = (resolved as any)?.type ?? (item as any)?.type ?? '';
       const typeFromMime =
         typeof mime === 'string' && mime.startsWith('video')

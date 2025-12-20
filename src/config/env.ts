@@ -4,6 +4,7 @@ const extra = Constants?.expoConfig?.extra ?? {};
 
 const DEFAULT_API_BASE_URL = 'https://api.self-link.com';
 const DEFAULT_HEALTH_ENDPOINT = '/api/v1/health/';
+const DEFAULT_REALTIME_URL = 'wss://api.self-link.com/ws/';
 
 const normalizeBaseUrl = (value: unknown): string => {
   if (!value) {
@@ -42,11 +43,15 @@ export const HEALTH_ENDPOINT = normalizeHealthEndpoint(extra.healthEndpoint);
 export const HEALTH_URL = `${API_BASE_URL}${HEALTH_ENDPOINT}`;
 
 const resolveRealtimeUrl = () => {
-  if (typeof extra.realtimeUrl === 'string') {
+  const envRealtime =
+    process.env.EXPO_PUBLIC_REALTIME_URL ??
+    process.env.EXPO_PUBLIC_WS_URL ??
+    (typeof extra.realtimeUrl === 'string' ? extra.realtimeUrl : undefined);
+  if (typeof envRealtime === 'string') {
     try {
-      return new URL(extra.realtimeUrl).toString();
+      return new URL(envRealtime).toString();
     } catch {
-      return extra.realtimeUrl;
+      return envRealtime;
     }
   }
   try {
@@ -57,12 +62,12 @@ const resolveRealtimeUrl = () => {
     const realtimePort = defaultPort === '8000' ? '8001' : defaultPort;
     url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
     url.port = realtimePort;
-    url.pathname = url.pathname.replace(/\/$/, '') + '/ws';
+    url.pathname = url.pathname.replace(/\/$/, '') + '/ws/';
     url.search = '';
     url.hash = '';
     return url.toString();
   } catch {
-    return API_BASE_URL.replace(/^http/, 'ws').replace(/\/$/, '') + '/ws';
+    return API_BASE_URL.replace(/^http/, 'ws').replace(/\/$/, '') + '/ws/';
   }
 };
 
