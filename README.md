@@ -34,7 +34,7 @@ src/
 
 ## Environment Config
 
-- `src/config/env.ts` resolves `API_BASE_URL` from `EXPO_PUBLIC_API_BASE_URL` (or `expo.extra.backendUrl`), defaults to `https://api.self-link.com`, and derives the websocket URL from the same host.
+- `src/config/env.ts` resolves `API_BASE_URL` from `EXPO_PUBLIC_API_BASE_URL` (or `expo.extra.backendUrl`), accepts either `https://api.self-link.com` or `https://api.self-link.com/api/v1`, defaults to `https://api.self-link.com`, and derives REST (`/api/v1`), websocket (`/ws`), and media (`/media/*`) URLs from the same host.
 - `src/hooks/useBackendHealth.ts` uses those values to test the Django API’s `/api/health/` endpoint by default.
 - Extend `src/services/api/client.ts` to add authenticated requests once login is wired.
 
@@ -43,8 +43,10 @@ src/
 - Defaults to `https://api.self-link.com` when no override is provided.
 - Set `EXPO_PUBLIC_API_BASE_URL` for overrides (Expo automatically exposes `EXPO_PUBLIC_*` at runtime).
 - Examples:
-  - Production: `EXPO_PUBLIC_API_BASE_URL=https://api.self-link.com`
+  - Production: `EXPO_PUBLIC_API_BASE_URL=https://api.self-link.com/api/v1`
   - Local: `EXPO_PUBLIC_API_BASE_URL=http://<LAN_IP>:8000`
+- Cloudflare routing assumption: `/api/v1/*` → API (8000), `/ws` → ASGI (8001), `/media/*` → static media server.
+- Dev cache-busting: if Cloudflare caches 404s for media during testing, append `?v=<timestamp>` to a media URL; debug builds also auto-append a `v=` query on `/media/*` to force reloads.
 - For EAS, add the env var to your build profile or Project → Environment Variables so iOS/Android builds pick it up.
 
 ## Authentication Foundation

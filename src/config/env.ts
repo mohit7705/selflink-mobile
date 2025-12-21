@@ -3,8 +3,11 @@ import Constants from 'expo-constants';
 const extra = Constants?.expoConfig?.extra ?? {};
 
 const DEFAULT_API_BASE_URL = 'https://api.self-link.com';
+const API_VERSION_PATH = '/api/v1';
 const DEFAULT_HEALTH_ENDPOINT = '/api/v1/health/';
-const DEFAULT_REALTIME_URL = 'wss://api.self-link.com/ws/';
+const DEFAULT_REALTIME_URL = 'wss://api.self-link.com/ws';
+
+const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '');
 
 const normalizeBaseUrl = (value: unknown): string => {
   if (!value) {
@@ -14,7 +17,7 @@ const normalizeBaseUrl = (value: unknown): string => {
   if (!stringValue) {
     return DEFAULT_API_BASE_URL;
   }
-  return stringValue.replace(/\/+$/, '');
+  return trimTrailingSlash(stringValue);
 };
 
 const rawApiBaseUrl =
@@ -23,8 +26,27 @@ const rawApiBaseUrl =
   (typeof extra.backendUrl === 'string' ? extra.backendUrl : undefined) ??
   DEFAULT_API_BASE_URL;
 
-export const API_BASE_URL = normalizeBaseUrl(rawApiBaseUrl);
-export const API_HTTP_BASE_URL = `${API_BASE_URL}/api/v1`;
+const deriveApiUrls = (value: unknown) => {
+  const normalized = normalizeBaseUrl(value);
+  const trimmed = trimTrailingSlash(normalized);
+  if (trimmed.endsWith(API_VERSION_PATH)) {
+    const apiHttpBaseUrl = trimmed;
+    const baseCandidate = trimTrailingSlash(trimmed.slice(0, -API_VERSION_PATH.length));
+    return {
+      apiBaseUrl: baseCandidate || DEFAULT_API_BASE_URL,
+      apiHttpBaseUrl,
+    };
+  }
+  return {
+    apiBaseUrl: trimmed,
+    apiHttpBaseUrl: `${trimmed}${API_VERSION_PATH}`,
+  };
+};
+
+const { apiBaseUrl, apiHttpBaseUrl } = deriveApiUrls(rawApiBaseUrl);
+
+export const API_BASE_URL = apiBaseUrl;
+export const API_HTTP_BASE_URL = apiHttpBaseUrl;
 
 const normalizeHealthEndpoint = (raw: unknown): string => {
   if (typeof raw !== 'string') {
@@ -42,16 +64,29 @@ const normalizeHealthEndpoint = (raw: unknown): string => {
 export const HEALTH_ENDPOINT = normalizeHealthEndpoint(extra.healthEndpoint);
 export const HEALTH_URL = `${API_BASE_URL}${HEALTH_ENDPOINT}`;
 
+const normalizeRealtimeUrl = (raw: string) => {
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    return DEFAULT_REALTIME_URL;
+  }
+  try {
+    const url = new URL(trimmed);
+    url.pathname = url.pathname.replace(/\/+$/, '');
+    return url.toString();
+  } catch {
+    return trimmed.replace(/\/+$/, '');
+  }
+};
+
 const resolveRealtimeUrl = () => {
   const envRealtime =
     process.env.EXPO_PUBLIC_REALTIME_URL ??
     process.env.EXPO_PUBLIC_WS_URL ??
     (typeof extra.realtimeUrl === 'string' ? extra.realtimeUrl : undefined);
   if (typeof envRealtime === 'string') {
-    try {
-      return new URL(envRealtime).toString();
-    } catch {
-      return envRealtime;
+    const trimmed = envRealtime.trim();
+    if (trimmed) {
+      return normalizeRealtimeUrl(trimmed);
     }
   }
   try {
@@ -62,12 +97,12 @@ const resolveRealtimeUrl = () => {
     const realtimePort = defaultPort === '8000' ? '8001' : defaultPort;
     url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
     url.port = realtimePort;
-    url.pathname = url.pathname.replace(/\/$/, '') + '/ws/';
+    url.pathname = url.pathname.replace(/\/+$/, '') + '/ws';
     url.search = '';
     url.hash = '';
-    return url.toString();
+    return normalizeRealtimeUrl(url.toString());
   } catch {
-    return API_BASE_URL.replace(/^http/, 'ws').replace(/\/$/, '') + '/ws/';
+    return normalizeRealtimeUrl(DEFAULT_REALTIME_URL);
   }
 };
 

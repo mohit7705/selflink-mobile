@@ -90,7 +90,7 @@ export async function registerUser(payload: RegisterPayload): Promise<LoginRespo
 }
 
 export async function refreshSession(refreshToken: string): Promise<LoginResponse> {
-  const result = await apiClient.request<LoginResponse>('/auth/token/refresh/', {
+  const result = await apiClient.request<LoginResponse>('/auth/refresh/', {
     method: 'POST',
     auth: false,
     body: { refresh: refreshToken },

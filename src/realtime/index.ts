@@ -21,7 +21,7 @@ export interface RealtimeConnection {
 const MAX_BACKOFF_MS = 30_000;
 const BASE_BACKOFF_MS = 1_000;
 const PING_INTERVAL_MS = 25_000;
-const REALTIME_PATH = '/ws/';
+const REALTIME_PATH = '/ws';
 
 const toRealtimeProtocol = (protocol: string) => (protocol === 'https:' ? 'wss:' : 'ws:');
 
