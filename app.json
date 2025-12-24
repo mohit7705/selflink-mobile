@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "selflink-mobile",
-    "slug": "selflink-mobile",
+    "slug": "selflink",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -13,7 +13,11 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.selflinksorganization.selflink",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -21,7 +25,8 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.selflinksorganization.selflink"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -29,7 +34,11 @@
     "extra": {
       "backendUrl": "https://api.self-link.com",
       "healthEndpoint": "/api/v1/health/",
-      "realtimeUrl": "wss://api.self-link.com/ws"
-    }
+      "realtimeUrl": "wss://api.self-link.com/ws",
+      "eas": {
+        "projectId": "6a9a9692-7823-4d44-af39-b3442c6e1816"
+      }
+    },
+    "owner": "selflinks-organization"
   }
 }
