@@ -1,6 +1,35 @@
-# Selflink Mobile
+## What is SelfLink?
 
-React Native + Expo client for the Selflink platform. The visual language leans into Apple’s silver hardware aesthetic—metallic gradients, rounded controls, and subtle haptics.
+SelfLink is an open-source mobile application built with React Native + Expo that explores how social features, personal growth tools, and AI-assisted guidance can coexist in a single, transparent platform.
+
+The project is currently in an early, experimental stage and focuses on:
+- user profiles and social interactions
+- structured content (posts, comments, messaging)
+- an evolving “AI mentor” concept
+- internationalization (multi-language support)
+- clean mobile architecture and developer experience
+
+SelfLink is not a finished product. It is an open development effort intended for learning, experimentation, and collaboration around modern mobile app patterns.
+
+## Who is this for?
+
+This repository is mainly for:
+- React / React Native developers who want to explore Expo-based mobile apps
+- Contributors interested in improving architecture, performance, or documentation
+- Developers curious about integrating AI features into mobile apps
+- Anyone who enjoys shaping early-stage open-source projects
+
+
+## Contributing & API Overview
+
+This project is developed openly and is still evolving. Contributions of all sizes are welcome — from documentation improvements to refactors and new features.
+
+If you’re interested in contributing, start here:
+- **Contributing guide:** see [CONTRIBUTING.md](./CONTRIBUTING.md) for workflow, expectations, and beginner-friendly contribution ideas.
+- **API overview:** see [docs/API.md](./docs/API.md) for a high-level map of the frontend API layer, grouped by category and linked to the relevant wrapper modules.
+
+If something is unclear or feels under-documented, that’s a valid contribution too. Opening issues, suggesting improvements, or asking questions is encouraged.
+
 
 ## Quick Start
 
